@@ -731,14 +731,19 @@ experimental_newThreadPanelAction (the root New thread counterpart, with
 `projectId: string | null` instead of `threadId`), pendingInteraction (temporarily replace a thread composer with a
 plugin form), fileOpener (register as a per-extension file viewer/editor;
 users pick defaults under Settings → File openers and can right-click a
-file link for a one-off choice), and messageDirective (replace a leaf
+file link for a one-off choice), messageDirective (replace a leaf
 `::name{k="v"}` block inside assistant / nested-agent Markdown with a plugin
 component; unknown, disabled, incomplete, code-fenced, or crashing
 directives fall back to the original source; components receive a nullable
 openWorkspaceFile(path) callback for opening a worktree-relative file in the
 host workspace viewer and a nullable
 openThreadPanel({ actionId, title?, params? }) callback for opening one of the
-same plugin's thread-panel actions). Hooks:
+same plugin's thread-panel actions), and experimental_codeFenceRenderer
+(render fenced code blocks of claimed languages in the same assistant /
+nested-agent Markdown with a plugin component receiving { code, language,
+status, index, message, Original }, mounted once per fence for the whole
+stream; BB's code block is the fallback for a disabled plugin, a language two
+plugins claim, and a fence whose component throws). Hooks:
 useRpc, useRealtime, useRealtimeConnectionState (the shared realtime socket's
 connecting/connected/reconnecting lifecycle; reconcile on later connected
 transitions, not the initial connection), useSettings (secrets excluded),
@@ -963,7 +968,7 @@ reload/disable/shutdown).
 
 Frontend entries register React slots (homepageSection, settingsSection,
 navPanel, threadPanelAction, experimental_newThreadPanelAction, fileOpener,
-messageDirective) and composer
+messageDirective, experimental_codeFenceRenderer) and composer
 customizations via `app.composer.customize({ actions, plusMenu, sendMenu,
 banners, richText })`; action/banner components use `useComposer()`, while the
 host renders plus-menu and send-menu rows and editor decorations. The deprecated pre-1.0 `slots.composerAccessory` footer API was
@@ -978,10 +983,12 @@ For the complete authoring reference — exact signatures, working snippets
 for every surface, the reload lifecycle, testing tips, and gotchas — use
 the built-in `bb-plugin-authoring` skill (agents: it loads on demand;
 humans: plugins/bb-guide/skills/bb-plugin-authoring/
-in a checkout). The builtin `inline-vis` plugin renders
-`::inline-vis{file="demo.html" height="480"}` through the sidebar's
-path-shaped, sandboxed worktree HTML iframe preview; `height` is optional.
-Its card header includes an open-in-sidebar action for the source HTML file.
+in a checkout). The builtin `inline-vis` plugin shows an HTML page as part
+of the reply, in a borderless sandboxed frame that follows the page's height
+and bb's theme. The page comes from `::inline-vis{file="demo.html"}` (a
+workspace or thread-storage file; an optional `height` caps the frame) or
+from a fenced `inline-vis` code block whose body is the page. A button that
+appears on hover opens the file in the sidebar, or reveals a block's source.
 The `plugins/` directory contains every bundled plugin: the auto-installed
 builtins and the store-only BB Official GitHub, Docs, Memory, and Tasks
 plugins. The `examples/plugins/` reference plugins cover slack-bot (webhook

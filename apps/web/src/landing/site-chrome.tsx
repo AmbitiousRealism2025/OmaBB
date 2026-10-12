@@ -285,6 +285,9 @@ export function SiteFooter({ current }: { current?: string }) {
             Software License
           </a>
         </p>
+        <p className="footer-publisher">
+          © {new Date().getFullYear()} Terragon Labs, Inc.
+        </p>
       </div>
       <FooterColumn title="Product">
         <li>

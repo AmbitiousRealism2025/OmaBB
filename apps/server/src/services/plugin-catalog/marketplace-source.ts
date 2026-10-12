@@ -335,6 +335,23 @@ async function materializeGit(
       source.url,
       checkout,
     ]);
+    const commit = await runInstallCommand("git", [
+      "-C",
+      checkout,
+      "rev-parse",
+      "--verify",
+      "--end-of-options",
+      `${source.ref}^{commit}`,
+    ]).catch(() =>
+      runInstallCommand("git", [
+        "-C",
+        checkout,
+        "rev-parse",
+        "--verify",
+        "--end-of-options",
+        `refs/remotes/origin/${source.ref}^{commit}`,
+      ]),
+    );
     await runInstallCommand("git", [
       ...GIT_CLONE_ARGS,
       "-C",
@@ -342,13 +359,7 @@ async function materializeGit(
       "checkout",
       "--quiet",
       "--detach",
-      source.ref,
-    ]);
-    const commit = await runInstallCommand("git", [
-      "-C",
-      checkout,
-      "rev-parse",
-      "HEAD",
+      commit,
     ]);
     await rm(join(checkout, ".git"), { recursive: true, force: true });
     return await materializeLocal(checkout, commit, dispose, warn);

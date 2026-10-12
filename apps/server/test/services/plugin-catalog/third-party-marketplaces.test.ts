@@ -196,6 +196,63 @@ describe("third-party marketplaces", () => {
       });
     });
 
+    it.each([
+      "catalog-next",
+      "origin/catalog-next",
+      "catalog-release",
+      "commit",
+    ])("reads the selected catalog commit for ref %s", async (ref) => {
+      await run("git", ["checkout", "-qb", "catalog-next"], { cwd: repo });
+      await writeFile(
+        join(repo, "marketplace.json"),
+        JSON.stringify(manifest("acme-plugins", [entry({ id: "next-notes" })])),
+      );
+      await run("git", ["commit", "-qam", "next catalog"], { cwd: repo });
+      await run("git", ["tag", "-am", "catalog release", "catalog-release"], {
+        cwd: repo,
+      });
+      const commit = (
+        await run("git", ["rev-parse", "HEAD"], { cwd: repo })
+      ).stdout.trim();
+      await run("git", ["checkout", "-q", "main"], { cwd: repo });
+      const catalog = service({ fetch: marketplaceFetch({}) });
+
+      const added = await catalog.addMarketplace(
+        `git:${repo}@${ref === "commit" ? commit : ref}`,
+      );
+
+      expect(added.resolvedCommit).toBe(commit);
+      expect(await catalog.search("Acme Notes")).toEqual([
+        expect.objectContaining({ entryId: "next-notes" }),
+      ]);
+      if (ref === "catalog-next") {
+        await run("git", ["checkout", "-q", "catalog-next"], { cwd: repo });
+        await writeFile(
+          join(repo, "marketplace.json"),
+          JSON.stringify(
+            manifest("acme-plugins", [entry({ id: "refreshed-notes" })]),
+          ),
+        );
+        await run("git", ["commit", "-qam", "refresh catalog"], { cwd: repo });
+        const refreshedCommit = (
+          await run("git", ["rev-parse", "HEAD"], { cwd: repo })
+        ).stdout.trim();
+        await run("git", ["checkout", "-q", "main"], { cwd: repo });
+
+        const [refreshed] = await catalog.refreshMarketplaces({
+          name: "acme-plugins",
+        });
+
+        expect(refreshed).toMatchObject({
+          ok: true,
+          marketplace: { resolvedCommit: refreshedCommit },
+        });
+        expect(await catalog.search("Acme Notes")).toEqual([
+          expect.objectContaining({ entryId: "refreshed-notes" }),
+        ]);
+      }
+    });
+
     it("adds, refreshes, and removes a git marketplace read from a real checkout", async () => {
       const catalog = service({ fetch: marketplaceFetch({}) });
 

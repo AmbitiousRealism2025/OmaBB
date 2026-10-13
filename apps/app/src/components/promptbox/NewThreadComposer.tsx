@@ -1454,7 +1454,10 @@ export function NewThreadComposer({
   const changeProject = useCallback(
     async (nextProjectId: string | null): Promise<ProjectChangeOutcome> => {
       const nextValue = nextProjectId ?? PERSONAL_PROJECT_ID;
-      if (nextValue === projectId) return "unchanged";
+      if (nextValue === projectId) {
+        await onProjectChange(nextValue);
+        return "unchanged";
+      }
       if (
         isCopyingAttachmentsRef.current ||
         pendingUploadCountRef.current > 0 ||

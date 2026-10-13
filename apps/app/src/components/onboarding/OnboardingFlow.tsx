@@ -24,7 +24,6 @@ import {
 import { ThreadTerminalView } from "@/components/thread/terminal/ThreadTerminalView";
 import { appToast } from "@/components/ui/app-toast";
 import { applyPluginInstallJob } from "@/hooks/cache-owners/plugin-cache-owner";
-import { useCreateProject } from "@/hooks/mutations/project-mutations";
 import {
   useHostDiscoveredRepos,
   useHosts,
@@ -92,6 +91,7 @@ import {
   recordTelemetryEvent,
   type OnboardingEntry,
 } from "./onboarding-telemetry";
+import { useOnboardingProjectImport } from "./useOnboardingProjectImport";
 
 const SIGN_IN_POLL_INTERVAL_MS = 3_000;
 const SIGN_IN_TERMINAL_COLS = 200;
@@ -511,6 +511,7 @@ function AgentStepContainer({
 
 function ProjectsStepContainer({
   chrome,
+  entry,
   hostId,
   projectIdsAtOpen,
   onBack,
@@ -518,6 +519,7 @@ function ProjectsStepContainer({
   onSkip,
 }: {
   chrome: StepChrome;
+  entry: OnboardingEntry;
   hostId: string | null;
   projectIdsAtOpen: ReadonlySet<string> | null;
   onBack: () => void;
@@ -525,15 +527,18 @@ function ProjectsStepContainer({
   onSkip: () => void;
 }) {
   const reposQuery = useHostDiscoveredRepos(hostId);
-  const createProject = useCreateProject();
   const quickCreateProject = useQuickCreateProjectController();
   const navigationQuery = useSidebarNavigation();
   const [selection, setSelection] = useState<ReadonlySet<string> | null>(null);
-  const [importing, setImporting] = useState(false);
   const [rescanning, setRescanning] = useState(false);
   const [now] = useState(() => Date.now());
 
   const { refetch: refetchRepos } = reposQuery;
+  const { importing, importProjects } = useOnboardingProjectImport({
+    entry,
+    onContinue,
+    onSettled: () => void refetchRepos(),
+  });
   const navigationProjects = navigationQuery.data?.projects;
   const hostProjects = useMemo(
     () =>
@@ -608,26 +613,12 @@ function ProjectsStepContainer({
     ];
   }, [discovered, hostProjects, now, projectIdsAtOpen]);
 
-  const importSelected = async () => {
+  const importSelected = () => {
     if (hostId === null || discovered === undefined) return;
     const chosen = discovered.filter(
       (repo) => repo.projectId === null && selectedPaths.has(repo.path),
     );
-    setImporting(true);
-    try {
-      for (const repo of chosen) {
-        await createProject.mutateAsync({
-          name: repo.name,
-          source: { type: "local_path", hostId, path: repo.path },
-        });
-      }
-    } catch {
-      return;
-    } finally {
-      setImporting(false);
-      void refetchRepos();
-    }
-    onContinue();
+    void importProjects(hostId, chosen);
   };
 
   const scanning = hostId === null || reposQuery.isPending || rescanning;
@@ -1053,6 +1044,7 @@ export function OnboardingFlow({
       return (
         <ProjectsStepContainer
           chrome={chrome}
+          entry={entry}
           hostId={hostId}
           projectIdsAtOpen={projectIdsAtOpen}
           onBack={goTo(-1)}

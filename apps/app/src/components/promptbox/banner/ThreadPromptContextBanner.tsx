@@ -515,6 +515,7 @@ function ChildThreadsBody({
             {pending ? (
               <button
                 type="button"
+                data-child-question-row={item.id}
                 onClick={() => onOpenQuestion(pending.interaction.id)}
                 className={CHILD_THREAD_ROW_CLASS}
               >
@@ -581,14 +582,17 @@ function ChildThreadsHeaderIcon({ needsInput }: { needsInput: boolean }) {
 }
 
 function ChildQuestionBackHeader({
+  backButtonRef,
   needsInput,
   onBack,
 }: {
+  backButtonRef: RefObject<HTMLButtonElement | null>;
   needsInput: boolean;
   onBack: () => void;
 }) {
   return (
     <button
+      ref={backButtonRef}
       type="button"
       id={SECTION_IDS.childThreads.toggle}
       aria-label="Back to active child threads"
@@ -620,12 +624,14 @@ function ChildQuestionBackHeader({
 }
 
 function ChildQuestionBody({
+  titleLinkRef,
   current,
   index,
   total,
   onStep,
   onClose,
 }: {
+  titleLinkRef: RefObject<HTMLAnchorElement | null>;
   current: ChildThreadQuestion;
   index: number;
   total: number;
@@ -657,7 +663,11 @@ function ChildQuestionBody({
     <div className="px-3 pb-2 pt-2">
       <div className="flex min-w-0 items-start justify-between gap-2">
         <p className="max-h-[calc(5lh+0.125rem)] min-w-0 flex-1 overflow-y-auto overscroll-contain break-words px-2.5 pt-0.5 text-xs text-foreground">
-          <NavLink to={current.href} className="underline underline-offset-2">
+          <NavLink
+            ref={titleLinkRef}
+            to={current.href}
+            className="underline underline-offset-2"
+          >
             {childTitle}
           </NavLink>
           : <span className="text-muted-foreground">{question}</span>
@@ -922,11 +932,26 @@ function ActiveChildThreadsCard({
   onToggle: () => void;
 }) {
   const focus = useDisclosureFocusHandoff(isExpanded, onToggle);
+  const cardRef = useRef<HTMLElement>(null);
   const [openQuestion, setOpenQuestion] = useState<{
     interactionId: string;
     index: number;
   } | null>(null);
-  const closeQuestion = useCallback(() => setOpenQuestion(null), []);
+  const returnFocusChildId = useRef<string | null>(null);
+  useEffect(() => {
+    const childId = returnFocusChildId.current;
+    if (openQuestion !== null || childId === null) {
+      return;
+    }
+    returnFocusChildId.current = null;
+    cardRef.current
+      ?.querySelector<HTMLElement>(`[data-child-question-row="${childId}"]`)
+      ?.focus();
+  }, [openQuestion]);
+  const closeQuestion = useCallback((childThreadId: string) => {
+    returnFocusChildId.current = childThreadId;
+    setOpenQuestion(null);
+  }, []);
   const items = childThreadsSection.items;
   const pendingInteractions = childThreadsSection.pendingInteractions;
   const matchedIndex = openQuestion
@@ -952,6 +977,71 @@ function ActiveChildThreadsCard({
       index: questionIndex,
     });
   }
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const titleLinkRef = useRef<HTMLAnchorElement>(null);
+  const focusBackOnOpen = useRef(false);
+  const openChildThreadId = currentQuestion?.childThreadId ?? null;
+  useEffect(() => {
+    if (openChildThreadId !== null && focusBackOnOpen.current) {
+      focusBackOnOpen.current = false;
+      (backButtonRef.current ?? titleLinkRef.current)?.focus();
+    }
+  }, [openChildThreadId]);
+  const focusWasInCard = useRef(false);
+  const hasItems = items.length > 0;
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) {
+      return;
+    }
+    const handleFocusIn = () => {
+      focusWasInCard.current = true;
+    };
+    const handleFocusOut = (event: FocusEvent) => {
+      if (
+        event.relatedTarget instanceof Node &&
+        !card.contains(event.relatedTarget)
+      ) {
+        focusWasInCard.current = false;
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !card.contains(event.target)) {
+        focusWasInCard.current = false;
+      }
+    };
+    card.addEventListener("focusin", handleFocusIn);
+    card.addEventListener("focusout", handleFocusOut);
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      card.removeEventListener("focusin", handleFocusIn);
+      card.removeEventListener("focusout", handleFocusOut);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [hasItems]);
+  const currentInteractionId = currentQuestion?.interaction.id ?? null;
+  const shownInteractionId = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = shownInteractionId.current;
+    shownInteractionId.current = currentInteractionId;
+    if (
+      !focusWasInCard.current ||
+      previous === null ||
+      previous === currentInteractionId ||
+      pendingInteractions.some((item) => item.interaction.id === previous)
+    ) {
+      return;
+    }
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) {
+      return;
+    }
+    (
+      backButtonRef.current ??
+      titleLinkRef.current ??
+      focus.triggerRef.current
+    )?.focus();
+  }, [currentInteractionId, pendingInteractions, focus.triggerRef]);
   const newestQuestionTitle = useThreadTitleDisplayText(
     pendingInteractions[0]?.childTitle ?? "",
   );
@@ -969,7 +1059,7 @@ function ActiveChildThreadsCard({
     }
     event.preventDefault();
     event.stopPropagation();
-    setOpenQuestion(null);
+    closeQuestion(currentQuestion.childThreadId);
   };
   const openQuestionAt = (index: number) => {
     const next = pendingInteractions[index];
@@ -986,10 +1076,16 @@ function ActiveChildThreadsCard({
         }),
       }
     : null;
+  const backToChildThreads = () => {
+    if (currentQuestion) {
+      closeQuestion(currentQuestion.childThreadId);
+    }
+  };
   const showBackHeader = currentQuestion !== undefined && items.length > 1;
   const needsInput = items.some((item) => item.hasPendingInteraction);
   return (
     <PromptStackCard
+      rootRef={cardRef}
       ariaLabel="Child threads"
       onKeyDown={closeQuestionOnEscape}
       className="overflow-hidden"
@@ -997,8 +1093,9 @@ function ActiveChildThreadsCard({
     >
       {showBackHeader ? (
         <ChildQuestionBackHeader
+          backButtonRef={backButtonRef}
           needsInput={needsInput}
-          onBack={() => setOpenQuestion(null)}
+          onBack={backToChildThreads}
         />
       ) : (
         <button
@@ -1052,6 +1149,7 @@ function ActiveChildThreadsCard({
       >
         {currentQuestion ? (
           <ChildQuestionBody
+            titleLinkRef={titleLinkRef}
             current={currentQuestion}
             index={questionIndex}
             total={pendingInteractions.length}
@@ -1067,13 +1165,14 @@ function ActiveChildThreadsCard({
           <ChildThreadsBody
             items={items}
             pendingInteractions={pendingInteractions}
-            onOpenQuestion={(interactionId) =>
+            onOpenQuestion={(interactionId) => {
+              focusBackOnOpen.current = true;
               openQuestionAt(
                 pendingInteractions.findIndex(
                   (item) => item.interaction.id === interactionId,
                 ),
-              )
-            }
+              );
+            }}
           />
         )}
         {currentQuestion ? null : (

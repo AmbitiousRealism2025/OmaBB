@@ -11,15 +11,9 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { NavLink } from "react-router-dom";
 import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { ExpandableLine } from "@/components/ui/expandable-line.js";
-
-export interface PendingInteractionSourceThread {
-  href: string;
-  title: string;
-}
 
 export const InlinePendingInteractionContext = createContext<{
   promptShownAbove: string;
@@ -33,7 +27,6 @@ interface PendingInteractionShellProps {
   errorMessage?: string | null;
   footer?: ReactNode;
   children?: (isExpanded: boolean) => ReactNode;
-  sourceThread?: PendingInteractionSourceThread;
   testId: string;
 }
 
@@ -44,7 +37,6 @@ export function PendingInteractionShell({
   errorMessage,
   footer,
   children,
-  sourceThread,
   testId,
 }: PendingInteractionShellProps) {
   const inline = useContext(InlinePendingInteractionContext);
@@ -152,16 +144,6 @@ export function PendingInteractionShell({
       </section>
     );
   }
-  const sourceThreadLink = sourceThread ? (
-    <NavLink
-      to={sourceThread.href}
-      title={sourceThread.title}
-      className="min-w-0 max-w-[40%] shrink-[3] truncate text-xs text-subtle-foreground no-underline hover:underline"
-    >
-      From {sourceThread.title}
-    </NavLink>
-  ) : null;
-
   return (
     <section
       ref={rootRef}
@@ -202,7 +184,6 @@ export function PendingInteractionShell({
             </span>
           </span>
         </button>
-        {isExpanded ? sourceThreadLink : null}
         {toggle}
       </div>
       <Activity mode={isExpanded ? "visible" : "hidden"}>

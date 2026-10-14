@@ -622,32 +622,6 @@ describe("ThreadPendingInteractionBanner collapsed strip", () => {
     ).toBe(true);
   });
 
-  it("links to the source thread while open", () => {
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
-          <ThreadPendingInteractionBanners
-            interactions={[commandApproval]}
-            sourceThread={{
-              href: "/threads/thr_child",
-              title: "Install tools",
-            }}
-            threadId="thr_child"
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-    expect(
-      screen
-        .getByRole("link", { name: "From Install tools" })
-        .getAttribute("href"),
-    ).toBe("/threads/thr_child");
-    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
-    expect(
-      screen.queryByRole("link", { name: "From Install tools" }),
-    ).toBeNull();
-  });
-
   it("shows an inline approval's title only when the banner line differs", () => {
     const renderInline = (promptShownAbove: string) =>
       render(

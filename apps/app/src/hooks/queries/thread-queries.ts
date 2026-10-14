@@ -294,25 +294,16 @@ function addThreadMentionCandidate(
   }
 }
 
-function buildThreadMentionCandidates(
-  threads: readonly ThreadListItem[],
-  { limit }: { limit: number },
-): ThreadListResponse {
-  const candidatesById = new Map<string, ThreadListItem>();
-  for (const thread of threads) {
-    addThreadMentionCandidate(candidatesById, thread);
-  }
-  return Array.from(candidatesById.values()).slice(0, limit);
-}
-
 const EMPTY_THREAD_LIST: ThreadListResponse = [];
 
 export function selectThreadMentionCandidates(
   threads: ThreadListEntry[],
 ): ThreadListResponse {
-  return buildThreadMentionCandidates(threads, {
-    limit: THREAD_MENTION_CANDIDATE_LIMIT,
-  });
+  const candidatesById = new Map<string, ThreadListItem>();
+  for (const thread of threads) {
+    addThreadMentionCandidate(candidatesById, thread);
+  }
+  return Array.from(candidatesById.values());
 }
 
 function getThreadMentionCandidatePlaceholder({

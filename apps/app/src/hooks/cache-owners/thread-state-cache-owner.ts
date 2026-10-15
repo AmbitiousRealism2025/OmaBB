@@ -1,4 +1,5 @@
-import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import { cancelOptimisticQueries } from "./optimistic-query-cancellation";
+import type { QueryClient } from "@tanstack/react-query";
 import type { ThreadListEntry, ThreadWithRuntime } from "@bb/domain";
 import type {
   UpdateThreadRequest,
@@ -328,9 +329,13 @@ async function runOptimisticThreadFieldTransaction({
   queryClient,
   threadId,
 }: OptimisticThreadFieldTransactionArgs): Promise<ThreadListMutationTransaction> {
-  await queryClient.cancelQueries({ queryKey: threadQueryKey(threadId) });
-  await queryClient.cancelQueries({ queryKey: threadsQueryKey() });
-  await queryClient.cancelQueries({ queryKey: sidebarNavigationQueryKey() });
+  await cancelOptimisticQueries(queryClient, {
+    queryKey: threadQueryKey(threadId),
+  });
+  await cancelOptimisticQueries(queryClient, { queryKey: threadsQueryKey() });
+  await cancelOptimisticQueries(queryClient, {
+    queryKey: sidebarNavigationQueryKey(),
+  });
 
   const previousThread = queryClient.getQueryData<ThreadWithRuntime>(
     threadQueryKey(threadId),
@@ -428,17 +433,6 @@ export async function beginThreadReadStateTransaction({
   queryClient,
   threadId,
 }: BeginThreadReadStateTransactionArgs): Promise<ThreadReadStateTransaction> {
-  const interruptedQueryKeys = [
-    threadQueryKey(threadId),
-    threadsQueryKey(),
-    sidebarNavigationQueryKey(),
-  ].flatMap((queryKey) =>
-    queryClient
-      .getQueryCache()
-      .findAll({ queryKey })
-      .filter((query) => query.state.fetchStatus !== "idle")
-      .map((query) => query.queryKey),
-  );
   const transaction = await runOptimisticThreadFieldTransaction({
     applyToLists: (queryClient, threadId) =>
       applyToCachedThreadListsAndSidebarNavigation(queryClient, (list) =>
@@ -458,27 +452,11 @@ export async function beginThreadReadStateTransaction({
     queryClient,
     threadId,
   });
-  return { ...transaction, lastReadAt, interruptedQueryKeys };
+  return { ...transaction, lastReadAt };
 }
 
 export interface ThreadReadStateTransaction extends ThreadListMutationTransaction {
   lastReadAt: number | null;
-  interruptedQueryKeys: QueryKey[];
-}
-
-export function settleThreadReadStateTransaction({
-  queryClient,
-  transaction,
-}: {
-  queryClient: QueryClient;
-  transaction: ThreadReadStateTransaction | undefined;
-}): void {
-  for (const queryKey of transaction?.interruptedQueryKeys ?? []) {
-    void queryClient.invalidateQueries(
-      { exact: true, queryKey },
-      { cancelRefetch: false },
-    );
-  }
 }
 
 export function rollbackThreadReadStateTransaction({
@@ -567,10 +545,14 @@ export async function beginThreadMetadataBatchTransaction({
   const threadIds = [...new Set(updates.map((update) => update.threadId))];
   await Promise.all([
     ...threadIds.map((threadId) =>
-      queryClient.cancelQueries({ queryKey: threadQueryKey(threadId) }),
+      cancelOptimisticQueries(queryClient, {
+        queryKey: threadQueryKey(threadId),
+      }),
     ),
-    queryClient.cancelQueries({ queryKey: threadsQueryKey() }),
-    queryClient.cancelQueries({ queryKey: sidebarNavigationQueryKey() }),
+    cancelOptimisticQueries(queryClient, { queryKey: threadsQueryKey() }),
+    cancelOptimisticQueries(queryClient, {
+      queryKey: sidebarNavigationQueryKey(),
+    }),
   ]);
 
   const previousThreads = new Map(
@@ -767,7 +749,9 @@ async function beginArchiveMatchingThreadsTransaction({
   });
   await Promise.all(
     archivedThreadIds.map((threadId) =>
-      queryClient.cancelQueries({ queryKey: threadQueryKey(threadId) }),
+      cancelOptimisticQueries(queryClient, {
+        queryKey: threadQueryKey(threadId),
+      }),
     ),
   );
 
@@ -833,8 +817,10 @@ export async function beginArchiveThreadAndChildrenTransaction({
   threadId,
 }: ArchiveThreadAndChildrenTransactionArgs): Promise<ArchiveThreadsTransaction> {
   await Promise.all([
-    queryClient.cancelQueries({ queryKey: threadsQueryKey() }),
-    queryClient.cancelQueries({ queryKey: sidebarNavigationQueryKey() }),
+    cancelOptimisticQueries(queryClient, { queryKey: threadsQueryKey() }),
+    cancelOptimisticQueries(queryClient, {
+      queryKey: sidebarNavigationQueryKey(),
+    }),
   ]);
   const threadIds = getCachedThreadTreeIds({
     queryClient,
@@ -854,8 +840,10 @@ export async function beginArchiveEnvironmentThreadsTransaction({
   environmentId: string;
 }): Promise<ArchiveThreadsTransaction> {
   await Promise.all([
-    queryClient.cancelQueries({ queryKey: threadsQueryKey() }),
-    queryClient.cancelQueries({ queryKey: sidebarNavigationQueryKey() }),
+    cancelOptimisticQueries(queryClient, { queryKey: threadsQueryKey() }),
+    cancelOptimisticQueries(queryClient, {
+      queryKey: sidebarNavigationQueryKey(),
+    }),
   ]);
   const threadIds = getCachedThreadTreeIds({
     queryClient,
@@ -935,9 +923,13 @@ export async function beginDeleteThreadTransaction({
   queryClient,
   threadId,
 }: ThreadIdCacheArgs): Promise<DeleteThreadTransaction> {
-  await queryClient.cancelQueries({ queryKey: threadQueryKey(threadId) });
-  await queryClient.cancelQueries({ queryKey: threadsQueryKey() });
-  await queryClient.cancelQueries({ queryKey: sidebarNavigationQueryKey() });
+  await cancelOptimisticQueries(queryClient, {
+    queryKey: threadQueryKey(threadId),
+  });
+  await cancelOptimisticQueries(queryClient, { queryKey: threadsQueryKey() });
+  await cancelOptimisticQueries(queryClient, {
+    queryKey: sidebarNavigationQueryKey(),
+  });
 
   const previousThread = queryClient.getQueryData<ThreadWithRuntime>(
     threadQueryKey(threadId),
@@ -956,7 +948,7 @@ export async function beginDeleteThreadTransaction({
   if (!threadIds.includes(threadId)) threadIds.push(threadId);
   await Promise.all(
     threadIds.map((id) =>
-      queryClient.cancelQueries({ queryKey: threadQueryKey(id) }),
+      cancelOptimisticQueries(queryClient, { queryKey: threadQueryKey(id) }),
     ),
   );
   const previousThreads = getCachedThreadSnapshots({ queryClient, threadIds });

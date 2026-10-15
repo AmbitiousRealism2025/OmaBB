@@ -161,6 +161,19 @@ including when another desktop app hosts it. When the viewing desktop runs
 on another machine and needs attention, a separate **Desktop** row shows its
 own update controls.
 
+The same desktop-hosted server update is available through `bb updates app apply`
+and `sdk.system.applyAppUpdate`. The hosting desktop downloads and installs the
+release with its native updater. The server asks before interrupting running
+threads, checks again after downloading, and persists the result across restart.
+
+Desktop update capability is an additive `desktopUpdateSupported: true` field in
+`SystemAppUpdateStatus`. The legacy `support` value remains
+`{ kind: "unsupported", reason: "desktop" }`, so previously shipped clients can
+still parse the response and keep their existing desktop update path. The CLI and SDK
+use the capability to update the hosting desktop. If an updater request fails,
+confirmed support is retained and installation is blocked until a retry succeeds.
+Desktop/server IPC stays within the bundled process tree and does not change
+the host-daemon protocol.
 
 ## Common Keys
 

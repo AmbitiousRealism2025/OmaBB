@@ -1,12 +1,43 @@
-const EXPERIMENTAL_SUFFIX = /\s*\[experimental\]\s*$/i;
+const PLUGIN_NAME_TAG_MAX_LENGTH = 24;
+
+export type PluginNameTagTone = "attention" | "neutral";
+
+export interface PluginNameTag {
+  label: string;
+  tone: PluginNameTagTone;
+}
+
+const RESERVED_PLUGIN_NAME_TAGS: ReadonlyMap<string, PluginNameTag> = new Map<
+  string,
+  PluginNameTag
+>([
+  ["experimental", { label: "Experimental", tone: "attention" }],
+]);
 
 export function splitPluginDisplayName(displayName: string): {
   name: string;
-  experimental: boolean;
+  tag: PluginNameTag | null;
 } {
-  const name = displayName.replace(EXPERIMENTAL_SUFFIX, "");
-  if (name === displayName || name.length === 0) {
-    return { name: displayName, experimental: false };
+  const plain = { name: displayName, tag: null };
+  const trimmed = displayName.trimEnd();
+  if (!trimmed.endsWith("]")) return plain;
+  const open = trimmed.lastIndexOf("[");
+  if (open <= 0) return plain;
+  const label = trimmed.slice(open + 1, -1).trim();
+  const key = label.toLowerCase();
+  if (
+    label.length === 0 ||
+    label.length > PLUGIN_NAME_TAG_MAX_LENGTH ||
+    label.includes("[") ||
+    label.includes("]")
+  ) {
+    return plain;
   }
-  return { name, experimental: true };
+  const name = trimmed.slice(0, open).trimEnd();
+  if (name.length === 0) return plain;
+  const tag: PluginNameTag = RESERVED_PLUGIN_NAME_TAGS.get(key) ?? {
+    label,
+    tone: "neutral",
+  };
+  return { name, tag };
 }

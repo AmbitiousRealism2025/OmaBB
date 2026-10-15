@@ -173,6 +173,8 @@ interface GeneralSettingsSectionProps {
   onConfirmThreadArchiveChange: (enabled: boolean) => void;
   keepHistoryAfterContextClear: boolean;
   onKeepHistoryAfterContextClearChange: (enabled: boolean) => void;
+  summarizeShellCommands: boolean;
+  onSummarizeShellCommandsChange: (enabled: boolean) => void;
   desktopBrowserAvailable: boolean;
   generalSettingsDisabled: boolean;
   managedBranchPrefix: string;
@@ -857,6 +859,8 @@ export function GeneralSettingsSection({
   onConfirmThreadArchiveChange,
   keepHistoryAfterContextClear,
   onKeepHistoryAfterContextClearChange,
+  summarizeShellCommands,
+  onSummarizeShellCommandsChange,
   desktopBrowserAvailable,
   generalSettingsDisabled,
   managedBranchPrefix,
@@ -974,6 +978,18 @@ export function GeneralSettingsSection({
               disabled={generalSettingsDisabled}
               onCheckedChange={onKeepHistoryAfterContextClearChange}
               aria-label="Show messages from before a context clear"
+            />
+          </SettingsWithControl>
+
+          <SettingsWithControl
+            label="Summarize shell commands"
+            description="Show short summaries for commands that read, list, or search files. Turn off to show command text and let you expand each command to view its output."
+          >
+            <Switch
+              checked={summarizeShellCommands}
+              disabled={generalSettingsDisabled}
+              onCheckedChange={onSummarizeShellCommandsChange}
+              aria-label="Summarize shell commands"
             />
           </SettingsWithControl>
 
@@ -1360,6 +1376,12 @@ export function SettingsView() {
             updateGeneralSettingsMutation.mutate({
               ...generalSettings,
               keepHistoryAfterContextClear: enabled,
+            })
+          }
+          summarizeShellCommands={generalSettings.summarizeShellCommands}
+          onSummarizeShellCommandsChange={(enabled) =>
+            updateGeneralSettingsMutation.mutate({
+              summarizeShellCommands: enabled,
             })
           }
           onReplaySetupGuide={() =>

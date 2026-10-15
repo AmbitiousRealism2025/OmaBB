@@ -156,24 +156,22 @@ edit it). Only one launcher manages updates for a data directory; a second
 internal markers the launcher passes to its server child; do not set them. See
 `bb guide machines` for the `bb updates` commands.
 
-Settings → Updates shows the server's own version in the **Server** row,
-including when another desktop app hosts it. When the viewing desktop runs
-on another machine and needs attention, a separate **Desktop** row shows its
-own update controls.
-
-The same desktop-hosted server update is available through `bb updates app apply`
-and `sdk.system.applyAppUpdate`. The hosting desktop downloads and installs the
-release with its native updater. The server asks before interrupting running
-threads, checks again after downloading, and persists the result across restart.
+Settings → Updates shows the **Server** row for both standalone servers and servers
+hosted by the desktop app. **Update** downloads the release and restarts the
+server, using the hosting desktop's native updater when applicable. It asks
+before interrupting running threads and checks again when the download finishes.
+A separate **Desktop** row appears when the viewing desktop needs attention and
+is not the desktop hosting the server. The same server update is available with
+`bb updates app apply` and `sdk.system.applyAppUpdate`.
 
 Desktop update capability is an additive `desktopUpdateSupported: true` field in
 `SystemAppUpdateStatus`. The legacy `support` value remains
 `{ kind: "unsupported", reason: "desktop" }`, so previously shipped clients can
-still parse the response and keep their existing desktop update path. The CLI and SDK
-use the capability to update the hosting desktop. If an updater request fails,
-confirmed support is retained and installation is blocked until a retry succeeds.
-Desktop/server IPC stays within the bundled process tree and does not change
-the host-daemon protocol.
+still parse the response and keep their existing desktop update path. New clients
+use the capability to offer the shared server controls. If an updater request
+fails, confirmed support is retained and installation is blocked until a retry
+succeeds. Desktop/server IPC stays within the bundled process tree and does not
+change the host-daemon protocol.
 
 ## Common Keys
 

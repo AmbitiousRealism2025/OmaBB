@@ -930,7 +930,11 @@ export function BbAppUpdateRows({
     return row(name, settledStatus);
   }
 
-  if (appUpdate !== undefined && appUpdate.support.kind === "supported") {
+  if (
+    appUpdate !== undefined &&
+    (appUpdate.support.kind === "supported" ||
+      appUpdate.desktopUpdateSupported === true)
+  ) {
     return (
       <InAppUpdateRow
         name={rowName}
@@ -1120,8 +1124,8 @@ function InAppUpdateRow({
   if (status.blocked !== null) {
     return row(
       name,
-      status.support.kind === "supported" &&
-        status.support.mode === "npm" &&
+      ((status.support.kind === "supported" && status.support.mode === "npm") ||
+        status.desktopUpdateSupported === true) &&
         status.blocked.reason === "fetch-failed"
         ? unavailableCheckControl
         : null,
@@ -2089,7 +2093,8 @@ export function UpdatesSettingsSection({
     desktopInfo?.updateAvailable === true ||
     inventory.systemVersion?.updateAvailable === true ||
     inventory.appUpdateAvailable ||
-    (appUpdate?.support.kind === "supported" &&
+    ((appUpdate?.support.kind === "supported" ||
+      appUpdate?.desktopUpdateSupported === true) &&
       (appUpdate.available !== null ||
         appUpdate.activity.phase !== "idle" ||
         pendingAppUpdateResult(appUpdate) !== null));
@@ -2136,36 +2141,22 @@ export function UpdatesSettingsSection({
             });
           });
         };
-  const appRow = (
-    <BbAppUpdateRows
-      name="Server"
-      systemVersion={inventory.systemVersion}
-      appUpdate={desktopInfo === null ? appUpdate : undefined}
-      applyPending={applyAppUpdate.isPending}
-      desktopInfo={desktopInfo}
-      isDesktop={isDesktop}
-      isChecking={isChecking}
-      onApplyAppUpdate={startAppUpdate}
-      onRetryAppCheck={handleCheckForUpdates}
-      onShowAppUpdateResult={openAppUpdateResultDetails}
-      onRelaunchDesktop={relaunchDesktop}
-      onRetryDesktop={retryDesktop}
-    />
-  );
+  const useServerUpdate =
+    serverRunsSeparately || appUpdate?.desktopUpdateSupported === true;
   const serverAppRow = (
     <BbAppUpdateRows
       name="Server"
       systemVersion={inventory.systemVersion}
-      appUpdate={appUpdate}
+      appUpdate={useServerUpdate || desktopInfo === null ? appUpdate : undefined}
       applyPending={applyAppUpdate.isPending}
-      desktopInfo={null}
-      isDesktop={false}
+      desktopInfo={useServerUpdate ? null : desktopInfo}
+      isDesktop={!useServerUpdate && isDesktop}
       isChecking={isChecking}
       onApplyAppUpdate={startAppUpdate}
       onRetryAppCheck={handleCheckForUpdates}
       onShowAppUpdateResult={openAppUpdateResultDetails}
-      onRelaunchDesktop={null}
-      onRetryDesktop={null}
+      onRelaunchDesktop={useServerUpdate ? null : relaunchDesktop}
+      onRetryDesktop={useServerUpdate ? null : retryDesktop}
     />
   );
   const desktopClientRow = (
@@ -2206,7 +2197,7 @@ export function UpdatesSettingsSection({
       {showChangelogPreview ? <ChangelogPreviewCard /> : null}
 
       <BbUpdatesCard>
-        {serverRunsSeparately ? serverAppRow : appRow}
+        {serverAppRow}
         {serverRunsSeparately && desktopRowNeedsAttention(desktopInfo)
           ? desktopClientRow
           : null}

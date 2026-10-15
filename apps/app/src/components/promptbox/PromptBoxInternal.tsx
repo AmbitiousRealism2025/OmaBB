@@ -641,6 +641,7 @@ interface PromptBoxInternalProps {
   header?: ReactNode;
   modeHeader?: ReactNode;
   footerStart?: ReactNode;
+  submitAccessory?: ReactNode;
   submission?: PromptBoxSubmissionConfig;
   minHeight?: number;
   typeahead: TypeaheadConfig;
@@ -1283,6 +1284,7 @@ export function PromptBoxInternal({
   header,
   modeHeader,
   footerStart,
+  submitAccessory,
   submission = {},
   minHeight = PROMPTBOX_MIN_HEIGHT,
   typeahead,
@@ -4037,6 +4039,7 @@ export function PromptBoxInternal({
                     !showCompactLayout && !suppressPluginComposerCustomizations
                   }
                 >
+                  {submitAccessory}
                   {!showCompactLayout || showCompactVoiceAction ? (
                     <>
                       {voice &&

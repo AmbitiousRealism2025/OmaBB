@@ -60,6 +60,11 @@ import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import { ThreadTimelineScrollToBottomButton } from "@/views/thread-detail/ThreadTimelineScrollToBottomButton";
 import { ThreadContextWindowIndicator } from "@/components/thread/timeline";
+import { formatCompactTokenCount } from "@/components/thread/timeline/thread-context-window-usage";
+import {
+  CompactBeforeSendChip,
+  type CompactBeforeSendOffer,
+} from "@/components/promptbox/CompactBeforeSendChip";
 import {
   PROMPT_CONTEXT_BANNER_COLLAPSED_HEIGHT,
   PROMPT_STACK_TRACK_CLASS,
@@ -155,6 +160,7 @@ export interface FollowUpPromptBoxProps {
   environmentSummary: ReactNode | null;
   compactEnvironmentSummary?: ReactNode;
   contextWindowUsage: ContextWindowUsage | null;
+  compactBeforeSend?: CompactBeforeSendOffer | null;
   execution: ExecutionControlsProps;
   permission: ExecutionPermissionConfig;
   sessionOptionsControl?: ReactNode;
@@ -233,6 +239,7 @@ function FollowUpPromptBoxWithComposer({
   environmentSummary,
   compactEnvironmentSummary = null,
   contextWindowUsage,
+  compactBeforeSend = null,
   execution,
   permission,
   sessionOptionsControl = null,
@@ -750,26 +757,33 @@ function FollowUpPromptBoxWithComposer({
           showModifierSubmitAction: submitMode.kind === "queue",
           title: composer.isFollowUpSubmitting
             ? "Submitting..."
-            : canSubmit && composer.submitTitle !== undefined
-              ? composer.submitTitle
-              : isStopping
-                ? "Queue for after the stop (Enter)"
-                : canQueueFollowUp
-                  ? steerOnPrimarySubmit
-                    ? isSteeringWhenReady
-                      ? `Steer when ready (Enter)${modifierSubmitHint("queue")}`
-                      : `Steer current run (Enter)${modifierSubmitHint("queue")}`
-                    : `Queue follow-up (Enter)${modifierSubmitHint("steer")}`
-                  : isLoadingExecutionOptions
-                    ? "Loading models..."
-                    : isUnavailable
-                      ? "Unavailable"
-                      : "Submit (Enter)",
+            : canSubmit && compactBeforeSend?.compactFirst
+              ? `Compact ${formatCompactTokenCount(compactBeforeSend.tokens)} tokens, then send (Enter)`
+              : canSubmit && composer.submitTitle !== undefined
+                ? composer.submitTitle
+                : isStopping
+                  ? "Queue for after the stop (Enter)"
+                  : canQueueFollowUp
+                    ? steerOnPrimarySubmit
+                      ? isSteeringWhenReady
+                        ? `Steer when ready (Enter)${modifierSubmitHint("queue")}`
+                        : `Steer current run (Enter)${modifierSubmitHint("queue")}`
+                      : `Queue follow-up (Enter)${modifierSubmitHint("steer")}`
+                    : isLoadingExecutionOptions
+                      ? "Loading models..."
+                      : isUnavailable
+                        ? "Unavailable"
+                        : "Submit (Enter)",
           isRunning: canStopRuntime,
         }}
         typeahead={typeahead}
         attachments={attachments}
         promptActions={promptActions}
+        submitAccessory={
+          compactBeforeSend ? (
+            <CompactBeforeSendChip {...compactBeforeSend} />
+          ) : null
+        }
         suppressPluginComposerCustomizations={
           suppressPluginComposerCustomizations
         }

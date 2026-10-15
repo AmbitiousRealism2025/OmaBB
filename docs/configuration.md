@@ -728,12 +728,21 @@ bb stores only the experiments you set; the others follow the shipped default.
 The `earlyAdopter` general setting (the Become an early adopter banner on
 Settings → Experiments, `bb settings general earlyAdopter on`) switches the
 shipped default to the early adopter default: experiments marked Early adopter
-(currently `timelinePush`) turn on, and the rest stay off. An experiment you
-set yourself keeps your value either way. `/system/config` and
-`sdk.system.config()` return the resolved values in `experiments`.
+(currently `timelinePush` and `compactExpiredCache`) turn on, and the rest stay
+off. An experiment you set yourself keeps your value either way.
+`/system/config` and `sdk.system.config()` return the resolved values in
+`experiments`.
 
 - `changelogPreview` shows the latest release notes as a dismissible card on
   Settings → Updates.
+- `compactExpiredCache` (on for early adopters) reports `compactionOfferAt` on a thread's context
+  usage (timeline `contextWindowUsage` and `bb thread context`) once the
+  provider has reported a prompt-cache lifetime, the provider supports manual
+  compaction, and the context holds at least 100k tokens. After that time the
+  composer shows a Compact chip beside the context meter; while it is on, the
+  next send passes `compactFirst` so the server runs `/compact` and queues the
+  message behind it. Clicking the chip keeps the full history for that one
+  send.
 - `serverMove` enables Move server here in Settings → Machines,
   `bb server move`, `bb server export`, and old server copy deletion; while off
   those routes return 403 `server_move_experiment_disabled` (status and cancel

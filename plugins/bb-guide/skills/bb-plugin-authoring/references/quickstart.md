@@ -54,7 +54,9 @@ the current engine values and the entries for its generated surfaces.
 - `bb.name` and `bb.description` (required) — non-empty human-facing plugin
   identity. The top-level package `name` remains the package identity and
   source of the plugin id. distribution.md covers how the store uses
-  `bb.description`.
+  `bb.description`. End `bb.name` (or a marketplace `displayName`) with
+  `[Experimental]` to show an Experimental badge on plugin cards and details;
+  the suffix itself is hidden there.
 - `bb.branding` (required) — declare `bb.branding.icon` as either the plugin's
   canonical BB icon name, such as `Zap`, or a plugin-relative compact SVG path
   such as `./assets/icon.svg`. A namespaced `"<pluginId>/<name>"` glyph is

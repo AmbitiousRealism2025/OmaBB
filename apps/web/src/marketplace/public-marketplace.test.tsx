@@ -16,6 +16,35 @@ import {
 import type { MarketplaceV2Entry } from "./marketplace-v2.js";
 
 describe("public marketplace route rendering", () => {
+  it.each([
+    ["Prompt Library [Experimental]", true],
+    ["Prompt Library", false],
+  ] as const)(
+    "renders %j with experimental status %s",
+    (displayName, experimental) => {
+      const entry = { ...MARKETPLACE_V2_FIXTURE.plugins[0]!, displayName };
+      const manifest = { ...MARKETPLACE_V2_FIXTURE, plugins: [entry] };
+      const pages = [
+        <PublicMarketplacePage
+          manifest={manifest}
+          stats={null}
+          state={{}}
+          onStateChange={() => {}}
+        />,
+        <PublicMarketplaceDetailPage
+          manifest={manifest}
+          entry={entry}
+          stats={null}
+        />,
+      ];
+      for (const page of pages) {
+        expect(
+          renderToStaticMarkup(page).includes(">Experimental</span>"),
+        ).toBe(experimental);
+      }
+    },
+  );
+
   it("renders the marketplace route with document shelves and controls", () => {
     const html = renderToStaticMarkup(
       <PublicMarketplacePage

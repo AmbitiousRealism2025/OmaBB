@@ -14,8 +14,10 @@ import {
   MACOS_CHROME_CONTROL_AXIS_CLASS,
   MACOS_CHROME_CONTROL_NO_DRAG_CLASS,
   MACOS_WINDOW_DRAG_CLASS,
+  shouldReserveMacosTrafficLights,
   shouldUseMacosDesktopChrome,
 } from "@/lib/bb-desktop";
+import { useDesktopWindowState } from "@/hooks/useDesktopWindowState";
 import { SidebarHistoryNavigationControls } from "./SidebarHistoryNavigationControls";
 
 const FRAMED_CARD_TOP_BORDER_OFFSET_CLASS = "-mt-px";
@@ -28,6 +30,9 @@ export function useSidebarHeaderControlAxisClass(): string | undefined {
     : undefined;
 }
 
+export const MACOS_DRAWER_HEADER_RESERVE_CLASS =
+  "pl-[calc(var(--bb-macos-traffic-light-reserve,84px)_+_32px_-_var(--bb-sidebar-control-size)_-_2_*_var(--bb-sidebar-rail-padding))]";
+
 export function SidebarTopReserveRow({
   testId,
   headerSlot,
@@ -38,7 +43,12 @@ export function SidebarTopReserveRow({
   const closeOnMobile = useCloseMobileSidebar();
   const isFramed = useIsSidebarFramed();
   const [desktopInfo] = useState(getBbDesktopInfo);
+  const desktopWindowState = useDesktopWindowState();
   const usesDesktopChrome = shouldUseMacosDesktopChrome(desktopInfo);
+  const reserveMacosTrafficLights = shouldReserveMacosTrafficLights({
+    desktopInfo,
+    windowState: desktopWindowState,
+  });
 
   if (isFramed && headerSlot === undefined) {
     return <div data-testid={testId} className="h-2 shrink-0" />;
@@ -52,6 +62,9 @@ export function SidebarTopReserveRow({
         "shrink-0 justify-end gap-1 px-2",
         isFramed && FRAMED_CARD_TOP_BORDER_OFFSET_CLASS,
         usesDesktopChrome && !isFramed && MACOS_WINDOW_DRAG_CLASS,
+        reserveMacosTrafficLights &&
+          !isFramed &&
+          MACOS_DRAWER_HEADER_RESERVE_CLASS,
       )}
     >
       {headerSlot}

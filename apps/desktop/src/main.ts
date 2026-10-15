@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { attachServerUpdateControl } from "./server-update-control.js";
 import { registerServerChoiceIpc } from "./server-choice-ipc.js";
 import { randomUUID } from "node:crypto";
 import { accessSync, constants as fsConstants } from "node:fs";
@@ -5,6 +7,7 @@ import { arch, homedir, release, type as osType } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
   app,
+  autoUpdater as nativeAutoUpdater,
   BrowserWindow,
   clipboard,
   dialog,
@@ -425,6 +428,7 @@ let startupErrorPage: StartupErrorPage | null = null;
 let startupActionPending = false;
 let connectSignInWindow: BrowserWindow | null = null;
 let stoppingForQuit = false;
+let appImageRelaunchPath: string | null = null;
 let quitting = false;
 let serverTargetStore: ServerTargetStore | null = null;
 let connectServerSync: ConnectServerSync | null = null;
@@ -2323,6 +2327,15 @@ function handleBeforeQuit(event: Event): void {
   event.preventDefault();
   stoppingForQuit = true;
   void finishQuit().finally(() => {
+    if (appImageRelaunchPath !== null) {
+      app.releaseSingleInstanceLock();
+      const replacement = spawn(appImageRelaunchPath, process.argv.slice(1), {
+        detached: true,
+        stdio: "ignore",
+      });
+      replacement.on("error", (error) => desktopLogger.error(error.message));
+      replacement.unref();
+    }
     app.quit();
   });
 }
@@ -2339,6 +2352,30 @@ async function finishQuit(): Promise<void> {
   desktopFindViewManager?.destroyAll();
   await desktopWindowFactory?.persistOpenWindows();
   await stopOwnedRuntime();
+}
+
+async function checkDesktopUpdates(): Promise<void> {
+  await Promise.all([
+    desktopUpdateService?.checkForUpdates(),
+    desktopAutoUpdateService?.checkForUpdates(),
+  ]);
+}
+
+async function installDesktopUpdate(): Promise<void> {
+  if (
+    desktopAutoUpdateService === null ||
+    !desktopAutoUpdateService.getInfo().updateDownloaded
+  )
+    return;
+  const appImagePath = process.env.APPIMAGE?.trim() ?? "";
+  if (
+    process.platform === "linux" &&
+    (appImagePath.length === 0 || !canReplaceAppImage(appImagePath))
+  ) {
+    throw new Error("This AppImage cannot be replaced in place.");
+  }
+  await desktopWindowFactory?.persistOpenWindows();
+  await desktopAutoUpdateService.installUpdate();
 }
 
 function registerDesktopUpdateIpc(): void {
@@ -2374,35 +2411,10 @@ function registerDesktopUpdateIpc(): void {
     await openDataDirectory();
   });
   ipcMain.handle(BB_DESKTOP_CHECK_FOR_UPDATES_CHANNEL, async () => {
-    await Promise.all([
-      desktopUpdateService?.checkForUpdates() ?? Promise.resolve(null),
-      desktopAutoUpdateService?.checkForUpdates() ?? Promise.resolve(null),
-    ]);
+    await checkDesktopUpdates();
     return getCurrentDesktopInfo();
   });
-  ipcMain.handle(BB_DESKTOP_INSTALL_UPDATE_CHANNEL, async () => {
-    if (desktopAutoUpdateService === null) {
-      return;
-    }
-    if (!desktopAutoUpdateService.getInfo().updateDownloaded) {
-      desktopAutoUpdateService.installUpdate();
-      return;
-    }
-    const appImagePath = process.env.APPIMAGE?.trim() ?? "";
-    if (
-      process.platform === "linux" &&
-      (appImagePath.length === 0 || !canReplaceAppImage(appImagePath))
-    ) {
-      desktopLogger.error(
-        `Desktop update install skipped: ${appImagePath || "this build"} cannot be replaced in place. The runtime stays up; download the new AppImage instead.`,
-      );
-      return;
-    }
-    quitting = true;
-    stoppingForQuit = true;
-    await finishQuit();
-    desktopAutoUpdateService.installUpdate();
-  });
+  ipcMain.handle(BB_DESKTOP_INSTALL_UPDATE_CHANNEL, installDesktopUpdate);
   ipcMain.on(
     BB_DESKTOP_SET_SPLIT_NAVIGATION_ENABLED_CHANNEL,
     (event, enabled: unknown, directionalCommands: unknown) => {
@@ -2533,6 +2545,29 @@ async function spawnOwnedRuntime(
       processExecPath: process.execPath,
     }),
   });
+  const updater = desktopAutoUpdateService;
+  if (updater !== null) {
+    attachServerUpdateControl({
+      child: bbProcess.childProcess,
+      getInfo: () => ({
+        ...updater.getInfo(),
+        downloadState: updater.getInfo().downloadState ?? "idle",
+        supported:
+          shouldEnableDesktopAutoUpdate({
+            env: process.env,
+            isPackaged: app.isPackaged,
+          }) &&
+          resolveDesktopUpdateSupport({
+            canReplaceAppImage,
+            env: process.env,
+            platform: resolveBbDesktopPlatform(process.platform),
+          }).autoUpdate,
+      }),
+      check: checkDesktopUpdates,
+      install: installDesktopUpdate,
+      subscribe: (listener) => updater.subscribe(listener),
+    });
+  }
   const runtime: DesktopRuntime = {
     bbProcess,
     ownership: "spawned",
@@ -3058,7 +3093,18 @@ async function runDesktopApp(): Promise<void> {
       !app.isPackaged && process.env.BB_DESKTOP_AUTO_UPDATE === "1",
     logger: desktopLogger,
     platform: desktopPlatform,
-    updater: createElectronAutoUpdaterAdapter(autoUpdater),
+    updater: createElectronAutoUpdaterAdapter(
+      autoUpdater,
+      nativeAutoUpdater,
+      process.platform === "linux" && process.env.APPIMAGE
+        ? {
+            path: process.env.APPIMAGE,
+            relaunch: (execPath) => {
+              appImageRelaunchPath = execPath;
+            },
+          }
+        : null,
+    ),
   });
   desktopUpdateService.subscribe(() => {
     sendDesktopInfoChanged();

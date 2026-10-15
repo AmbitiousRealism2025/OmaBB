@@ -150,12 +150,17 @@ bb does not roll back an update; a version that fails to start runs again on
 the next start, and an older release may not open a database the new version
 migrated. The outcome is recorded in `<dataDir>/bb-app-update.json` (do not
 edit it). Only one launcher manages updates for a data directory; a second
-`bb-app start` on it runs with in-app updates off. A server the desktop app
-starts updates with the desktop app; `pnpm dev`, `bb-server`, and a standalone
+`bb-app start` on it runs with in-app updates off. `pnpm dev`, `bb-server`, and a standalone
 `bb-host-daemon` do not offer in-app updates. `BB_APP_UPDATE_MODE`,
 `BB_APP_INSTALL_KIND`, `BB_APP_SOURCE_ORIGIN`, and `BB_APP_SOURCE_COMMIT` are
 internal markers the launcher passes to its server child; do not set them. See
 `bb guide machines` for the `bb updates` commands.
+
+Settings → Updates shows the server's own version in the **Server** row,
+including when another desktop app hosts it. When the viewing desktop runs
+on another machine and needs attention, a separate **Desktop** row shows its
+own update controls.
+
 
 ## Common Keys
 

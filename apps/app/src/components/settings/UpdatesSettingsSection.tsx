@@ -973,11 +973,14 @@ export function BbAppUpdateRows({
     );
   }
 
+  const desktopHostedServer =
+    systemVersion.installKind === "desktop" ||
+    (appUpdate !== undefined && isDesktopOwnedServer(appUpdate));
   const name = (
     <RowName
       name={rowName}
       detail={
-        systemVersion.updateAvailable ? (
+        systemVersion.updateAvailable && !desktopHostedServer ? (
           <span className="hidden truncate font-mono text-2xs text-muted-foreground sm:inline">
             {systemVersion.upgradeCommand}
           </span>
@@ -991,6 +994,9 @@ export function BbAppUpdateRows({
   );
 
   if (systemVersion.updateAvailable) {
+    if (desktopHostedServer) {
+      return row(name, <RowStateControl state="update-available" />);
+    }
     return row(
       name,
       <RowStateControl
@@ -2043,20 +2049,22 @@ export function UpdatesSettingsSection({
 
   function handleCheckForUpdates(): void {
     startAppUpdateCheck(async () => {
-      const [appCheck, appUpdateCheck] = await Promise.allSettled([
-        desktopApi !== null
-          ? desktopApi.checkForUpdates().then(() => null)
-          : sdk.system.version({ force: true }),
-        sdk.system.appUpdate({ force: true }),
-      ]);
+      const [appCheck, appUpdateCheck, desktopCheck] = await Promise.allSettled(
+        [
+          sdk.system.version({ force: true }),
+          sdk.system.appUpdate({ force: true }),
+          desktopApi?.checkForUpdates(),
+        ],
+      );
       if (appUpdateCheck.status === "fulfilled") {
         hydrateAppUpdateStatus({ queryClient, status: appUpdateCheck.value });
       }
       if (appCheck.status === "rejected") {
         throw appCheck.reason;
       }
-      if (appCheck.value !== null) {
-        hydrateSystemVersionCache({ queryClient, version: appCheck.value });
+      hydrateSystemVersionCache({ queryClient, version: appCheck.value });
+      if (desktopCheck.status === "rejected") {
+        throw desktopCheck.reason;
       }
       await Promise.all(
         connectedHostIds.map((hostId) =>
@@ -2095,7 +2103,13 @@ export function UpdatesSettingsSection({
     (machine) => visibleProviderUpdateIssues(machine).length > 0,
   );
   const serverRunsSeparately =
-    isDesktop && appUpdate !== undefined && !isDesktopOwnedServer(appUpdate);
+    isDesktop &&
+    !(
+      appUpdate !== undefined &&
+      isDesktopOwnedServer(appUpdate) &&
+      localDaemonHostId !== null &&
+      localDaemonHostId === serverPrimaryHostId
+    );
   const hasUpdateWork =
     appUpdateVisible || hasProviderUpdates || hasStalledMachine;
   const fleetIsHealthy = relevantFleetMachines.length === 0;
@@ -2124,7 +2138,7 @@ export function UpdatesSettingsSection({
         };
   const appRow = (
     <BbAppUpdateRows
-      name={isDesktop ? "Desktop" : "Server"}
+      name="Server"
       systemVersion={inventory.systemVersion}
       appUpdate={desktopInfo === null ? appUpdate : undefined}
       applyPending={applyAppUpdate.isPending}

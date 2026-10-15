@@ -1516,8 +1516,9 @@ export interface PluginThreadActionRunInput {
 export interface PluginThreadAction {
   label: string;
   /**
-   * Short secondary text on a muted second line under the label, e.g. the
-   * current value of a choice list.
+   * Short secondary text, e.g. the current value of a choice list. Shown on
+   * a muted second line under the label, except on rows with `choices`,
+   * where only tooltips and screen readers include it.
    */
   detail?: string;
   icon: BbIconName;
@@ -1563,7 +1564,7 @@ export interface PluginThreadActionItemInput<Data> {
  * Add an action to every thread actions menu: the thread header's menu, the
  * sidebar row's menu and right-click menu, the compact long-press drawer, and,
  * when the user picks it, a sidebar row's quick-action buttons. bb's own
- * actions (Open in split, Copy thread link, Mark read, Pin, Rename, Archive,
+ * actions (Open in split, Copy link, Mark read, Pin, Rename, Archive,
  * Delete, …) are registrations of this same shape.
  *
  * `useData` is a React hook the host calls once for the whole app, never per
@@ -3733,11 +3734,13 @@ export interface PluginSdkApp {
   experimental_ThreadActionsContextMenu: ComponentType<PluginThreadActionsContextMenuProps>;
   /**
    * bb's thread menu groups, for a registration that joins one:
-   * `open` (split), `organize` (copy, read, pin, move, rename), `settings`,
-   * and `lifecycle` (archive, delete). Experimental: see docs/api_to_audit.md.
+   * `open` (split, copy link, new thread in environment), `state` (pin,
+   * read, notifications), `organize` (rename, move), `settings`, and
+   * `lifecycle` (archive, delete). Experimental: see docs/api_to_audit.md.
    */
   experimental_THREAD_ACTION_GROUPS: {
     readonly open: "1_open";
+    readonly state: "1_state";
     readonly organize: "2_organize";
     readonly settings: "3_settings";
     readonly lifecycle: "4_lifecycle";

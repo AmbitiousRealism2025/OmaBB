@@ -203,7 +203,8 @@ export const notificationsThreadAction: PluginThreadActionRegistration<ThreadNot
     id: "notifications",
     title: "Notifications",
     icon: "BellDot",
-    group: experimental_THREAD_ACTION_GROUPS.settings,
+    group: experimental_THREAD_ACTION_GROUPS.state,
+    order: 50,
     useData: useThreadNotificationsData,
     item: ({ thread, data }) => {
       if (thread.archivedAt !== null) return null;

@@ -805,7 +805,10 @@ function MarkdownCodeBlock({
 
   return (
     <div className="my-2 overflow-hidden rounded-md border border-border bg-surface-recessed">
-      <div className="flex items-center justify-between pl-3 pr-1.5 pt-1.5">
+      <div
+        data-clipboard-ignore
+        className="flex items-center justify-between pl-3 pr-1.5 pt-1.5"
+      >
         <span className="font-mono text-xs uppercase text-muted-foreground">
           {language ?? ""}
         </span>
@@ -1041,7 +1044,6 @@ function MarkdownTable({ children }: MarkdownTableProps) {
         marginInline: `calc((100% - ${MARKDOWN_TABLE_BREAKOUT_WIDTH}) / 2)`,
       }}
     >
-      {}
       <div
         className="w-max max-w-full overflow-x-auto"
         style={{

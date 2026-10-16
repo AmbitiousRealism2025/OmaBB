@@ -31,6 +31,7 @@ import {
   listLatestThreadStateEventRowsByThreadIds,
   listLatestOpenBackgroundTaskStateRowsForThread,
   listStoredConversationOutlineEventRows,
+  listStoredDelegatingItemRowsByItemIds,
   listStoredEventRows,
   listStoredEventRowsByParentToolCallIds,
   listStoredTurnCompletedKeys,
@@ -750,6 +751,57 @@ describe("slow query index plans", () => {
       queryPlanDetails({ db, params: query.params, sql: query.sql }),
     ).toMatch(
       /SEARCH events USING INDEX events_parent_tool_call_thread_parent_sequence_idx/u,
+    );
+
+    db.$client.close();
+  });
+
+  it("seeks each missing delegating parent through the thread-and-item index", () => {
+    const { db, thread } = setup();
+    const lifecycle = [
+      ["tool-a", "toolCall", "item/started"],
+      ["delegation-b", "delegation", "item/started"],
+      ["command-c", "commandExecution", "item/started"],
+      ["tool-a", "toolCall", "item/completed"],
+      ["command-c", "commandExecution", "item/completed"],
+      ["delegation-b", "delegation", "item/completed"],
+    ] as const;
+    insertEvents(
+      db,
+      noopNotifier,
+      lifecycle.map(([itemId, itemKind, type], index) => ({
+        threadId: thread.id,
+        sequence: index + 1,
+        type,
+        scope: threadScope(),
+        itemId,
+        itemKind,
+        parentToolCallId: null,
+        data: JSON.stringify({ item: { id: itemId, type: itemKind } }),
+      })),
+    );
+    const delegatingRows = listStoredEventRowsInSequenceRange(db, {
+      afterSequence: 0,
+      limit: lifecycle.length,
+      maxInlineOutputChars: 32_000,
+      threadId: thread.id,
+      throughSequence: lifecycle.length,
+    }).filter((row) => row.itemKind !== "commandExecution");
+
+    const [query] = captureStatements(db, () => {
+      expect(
+        listStoredDelegatingItemRowsByItemIds(db, {
+          itemIds: ["delegation-b", "command-c", "tool-a"],
+          maxInlineOutputChars: 32_000,
+          threadId: thread.id,
+        }),
+      ).toEqual(delegatingRows);
+    });
+    if (!query) {
+      throw new Error("Expected the delegating item lookup SQL");
+    }
+    expect(queryPlanDetails({ db, ...query })).toContain(
+      "SEARCH events USING INDEX events_delegating_item_lookup_idx (thread_id=? AND item_id=?)",
     );
 
     db.$client.close();

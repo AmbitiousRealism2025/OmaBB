@@ -9,6 +9,50 @@ const blockTags = new Set([
   "FOOTER",
 ]);
 
+const mathElements = ".katex-display, .katex, .katex-error";
+
+function mathRoot(node: Node): Element | null {
+  const element = node instanceof Element ? node : node.parentElement;
+  return (
+    element?.closest(".katex-display") ??
+    element?.closest(".katex, .katex-error") ??
+    null
+  );
+}
+
+function expandRangeToMath(range: Range): Range {
+  const expanded = range.cloneRange();
+  const start = mathRoot(range.startContainer);
+  const end = mathRoot(range.endContainer);
+  if (start) expanded.setStartBefore(start);
+  if (end) expanded.setEndAfter(end);
+  return expanded;
+}
+
+function mathMarkdown(element: Element): string | null {
+  if (!element.matches(mathElements)) return null;
+  const tex =
+    (
+      element.querySelector('annotation[encoding="application/x-tex"]') ??
+      element
+    ).textContent?.trim() ?? "";
+  return element.matches(".katex-display")
+    ? `\n\n$$\n${tex}\n$$\n\n`
+    : `$$${tex}$$`;
+}
+
+function replaceMathWithMathMl(container: Element): void {
+  for (const element of container.querySelectorAll(".katex-display, .katex")) {
+    if (element.parentElement?.closest(".katex-display, .katex")) continue;
+    const math = element.querySelector("math")?.cloneNode(true);
+    if (!(math instanceof Element)) continue;
+    math.querySelectorAll("annotation").forEach((annotation) => {
+      annotation.remove();
+    });
+    element.replaceWith(math);
+  }
+}
+
 function safeUrl(value: string): string {
   return /^(?:javascript|vbscript|data):/i.test(
     value.replace(/[\u0000-\u0020]/g, ""),
@@ -86,6 +130,8 @@ function nodeMarkdown(node: Node): string {
     return escapeText(node.textContent ?? "");
   if (!(node instanceof Element)) return childrenMarkdown(node);
   if (node.matches(omittedElements)) return "";
+  const math = mathMarkdown(node);
+  if (math !== null) return math;
   const tag = node.tagName;
   if (tag === "PRE") {
     const code = node.querySelector("code");
@@ -139,9 +185,10 @@ function nodeMarkdown(node: Node): string {
 }
 
 export function selectionClipboard(
-  range: Range,
+  selected: Range,
   root: Element,
 ): { text: string; html: string } {
+  const range = expandRangeToMath(selected);
   const start =
     range.startContainer instanceof Element
       ? range.startContainer
@@ -185,10 +232,12 @@ export function selectionClipboard(
     pre && end && pre.contains(end)
       ? range.toString()
       : childrenMarkdown(container).trim();
+  replaceMathWithMathMl(container);
   container
     .querySelectorAll(omittedElements)
     .forEach((element) => element.remove());
   for (const element of container.querySelectorAll("*")) {
+    if (element.closest("math")) continue;
     for (const attribute of Array.from(element.attributes)) {
       if (
         !["href", "src", "alt", "start", "colspan", "rowspan"].includes(

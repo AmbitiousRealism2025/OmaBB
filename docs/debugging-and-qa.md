@@ -704,6 +704,12 @@ strong ETag or Last-Modified value exactly; otherwise the full file is returned.
 HEAD returns full-file headers without reading the body. To check partial reads,
 use `curl -D - -H 'Range: bytes=0-1023' '<attachment-url>' -o /tmp/attachment-part`.
 
+Skill detail reads and file listings resolve symlinked skill directories on
+their owning host. The server opts into `followRootSymlink` for
+`host.read_file_relative` and `host.list_files`; other callers pass `false`.
+Relative skill reads remain confined to the resolved directory and deny dotfiles,
+and listings skip nested symlinks. Linked skills remain read-only in bb.
+
 ## Prepared Worktree Restarts
 
 `pnpm start` and `pnpm start:worktree` always run Turbo-backed preparation

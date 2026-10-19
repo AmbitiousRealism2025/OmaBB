@@ -312,6 +312,26 @@ with `METHOD_NOT_FOUND` still starts threads. The runtime never probes.
 Conformance rule `skills/configure-declared` pins both directions: declared →
 the request must succeed; undeclared → the request must be refused.
 
+### Command catalog
+
+`commands/list { cwd }` returns `{ commands: [{ name, description, inputHint? }] }`,
+the same shape as the `bb/provider-commands` thread state: the slash commands
+the provider offers in `cwd` before any thread runs there. The server merges
+them into the project command catalog (the new-thread composer's `/` menu,
+`bb project commands`), adding only names the native-root scan does not
+already list. The runtime sends it **only to a bridge whose handshake declares
+`commands: { list: true }`** and answers an empty list for any other bridge.
+Answer from the provider's own report without starting a model turn, and
+filter it with the same rules the bridge applies to `bb/provider-commands`, so
+a thread's menu does not change when its first turn starts. Conformance rule
+`commands/list-declared` pins both directions, as for `skills/configure`.
+
+For a new thread without a project, the server sends `provider.list_commands`
+with `cwd: null`. The host daemon probes from a dedicated empty
+`provider-command-catalog` directory under its data directory. The bridge still
+receives an absolute working directory, so global provider commands are available
+before a personal workspace exists. Selected projects use their workspace path.
+
 ### Recovery hints
 
 A hint says what went wrong in the provider's own terms and what the runtime

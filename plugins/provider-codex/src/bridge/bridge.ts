@@ -4,8 +4,6 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import {
   isStandaloneBuiltinCompactCommand,
-  approvalInteractionOutcomeSchema,
-  userQuestionInteractionOutcomeSchema,
   type DynamicTool,
   type PromptInput,
   type ThreadDelta,
@@ -55,7 +53,7 @@ import {
   summarizeCodexMacOsPermissions,
 } from "../extension-kinds.js";
 import {
-  buildCodexInteractiveResponse,
+  buildCodexInteractiveResult,
   decodeCodexInteractiveRequest,
   extractCodexMacOsPermissionRequest,
   type CodexMacOsPermissionRequest,
@@ -68,6 +66,7 @@ import {
   type CodexCyberProgram,
   type CodexModelCatalog,
 } from "../models.js";
+import { resolveCodexMcpElicitationAppIcon } from "../mcp-elicitation-host.js";
 import { macOsPermissionPresentation } from "../presentation.js";
 import {
   codexTurnSchema,
@@ -878,27 +877,23 @@ function handleChildRequest(
     );
     return;
   }
-  const request = decoded;
-
-  void sendRuntimeRequest(BRIDGE_INBOUND_REQUEST_METHODS.interactionRequest, {
-    providerThreadId: session.codexThreadId ?? request.providerThreadId,
-    threadId: session.bbThreadId,
-    turnId: request.turnId,
-    payload: request.payload,
-    providerNativeIds: true,
-  })
-    .then((result) => {
-      const outcome =
-        request.payload.kind === "user_question"
-          ? userQuestionInteractionOutcomeSchema.parse({
-              payload: request.payload,
-              resolution: result,
-            })
-          : approvalInteractionOutcomeSchema.parse({
-              payload: request.payload,
-              resolution: result,
-            });
-      responder.result(buildCodexInteractiveResponse(outcome));
+  void resolveCodexMcpElicitationAppIcon(decoded)
+    .then(async (request) => {
+      if (currentSession(bbThreadId, serial) !== session) {
+        throw new Error("codex session is no longer current");
+      }
+      const [runtimeResult] = await Promise.allSettled([
+        sendRuntimeRequest(BRIDGE_INBOUND_REQUEST_METHODS.interactionRequest, {
+          providerThreadId: session.codexThreadId ?? request.providerThreadId,
+          threadId: session.bbThreadId,
+          turnId: request.turnId,
+          payload: request.payload,
+          providerNativeIds: true,
+        }),
+      ]);
+      responder.result(
+        buildCodexInteractiveResult(request.payload, runtimeResult),
+      );
     })
     .catch((error: unknown) => {
       responder.error(

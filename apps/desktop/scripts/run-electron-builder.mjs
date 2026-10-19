@@ -184,6 +184,17 @@ function resolveElectronBuilderConfig(baseConfig, env, electronBuilderArgs) {
     executableName: releaseConfig.linuxExecutableName,
     icon: "assets/" + releaseConfig.iconFileName,
   };
+  if (
+    electronBuilderArgs.includes("--linux") &&
+    electronBuilderArgs.includes("--arm64")
+  ) {
+    // A target's own arch list wins over the CLI flag, so retarget the
+    // checked-in x64 AppImage instead of packaging it alongside arm64.
+    config.linux.target = config.linux.target.map((target) => ({
+      ...target,
+      arch: ["arm64"],
+    }));
+  }
   config.win = {
     ...config.win,
     icon: "assets/" + releaseConfig.iconFileName,

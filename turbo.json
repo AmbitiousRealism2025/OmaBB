@@ -285,6 +285,12 @@
       "outputs": ["release/**"],
       "passThroughEnv": ["*"]
     },
+    "@bb/desktop#desktop:build:linux:arm64": {
+      "dependsOn": ["bb-app#build", "@bb/desktop#build"],
+      "cache": false,
+      "outputs": ["release/**"],
+      "passThroughEnv": ["*"]
+    },
     "@bb/desktop#desktop:build:win": {
       "dependsOn": ["bb-app#build", "@bb/desktop#build"],
       "cache": false,

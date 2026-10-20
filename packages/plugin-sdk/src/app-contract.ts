@@ -914,6 +914,17 @@ export interface PluginNavPanelRegistration {
   path: string;
   component: ComponentType<PluginNavPanelProps>;
   /**
+   * Sidebar shown instead of the thread list while this panel's route is
+   * active, in the same section sidebar as Settings, Plugins and Skills. BB
+   * keeps the navigation rail, top chrome and resize handle; in the top-list
+   * layout it adds a "Back to app" row and the panel title, and Back to app
+   * (Escape) returns to the last app page. Receives the page's current
+   * subPath. Other routes keep their usual sidebar. A crash shows a crash
+   * notice until the subPath or plugin generation changes.
+   * Experimental: see docs/api_to_audit.md.
+   */
+  experimental_sidebar?: ComponentType<PluginNavPanelProps>;
+  /**
    * Ordered, non-closable tabs shown in this page's host-owned right panel.
    * BB owns selection and persistence and always includes its native Browser
    * and Terminal tools beside them. One tab is active in each visible split

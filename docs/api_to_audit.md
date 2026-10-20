@@ -3139,3 +3139,27 @@ classification should cover more network commands (for example `git lfs`), and
 whether work that escapes an admitted operation's async context should regain
 admission. Verify that every caller holds permits until its last admitted child
 exits, including pipelines.
+
+## Navigation-panel route sidebar
+
+`PluginNavPanelRegistration.experimental_sidebar` is an optional component
+receiving `PluginNavPanelProps`. `AppLayout` resolves one route sidebar per
+location with `resolveRouteSidebar`: Settings, Plugins and Skills are core
+entries, and a live navigation panel with `experimental_sidebar` is a plugin
+entry. `AppLayoutSidebar` mounts whichever entry resolves in the alternate
+sidebar body, holds the outgoing entry while a compact drawer closes, and
+retains the native rail and mounted thread-list state. Every entry renders in
+`SectionSidebar`, which owns the top chrome and history controls, the "Back to
+app" row and title in the top-list layout, compact-drawer dismissal for SDK and
+delegated-link navigation, and the resize handle. Panel sidebar routes are
+section routes in `useAppSettingsRouteMemory`, so Back to app and the `app.back`
+command return to the last core app route, as from Plugins and Skills. A crash
+shows the plugin crash notice inside the section until the subPath or plugin
+generation changes. Registration and route switching change no setting, thread,
+draft or execution state.
+
+Docs: Plugin Guide Full-page panels surface. Stabilization requires exact route,
+back/forward, disable/reload/crash, compact focus and single-sidebar replay with
+real plugin CSS in both navigation layouts. The API is generic; no plugin-id
+special case exists in core. CLI navigation uses the existing panel URL; this
+field introduces no separate backend or headless side effect.

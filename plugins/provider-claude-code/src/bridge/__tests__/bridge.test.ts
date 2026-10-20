@@ -1283,6 +1283,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1299,11 +1300,44 @@ describe("bridge", () => {
     expect(options.systemPrompt).toBe("You are a manager.");
   });
 
+  it.each([
+    { artifactsEnabled: true, inherited: {}, expected: "1" },
+    { artifactsEnabled: false, inherited: {}, expected: undefined },
+    {
+      artifactsEnabled: false,
+      inherited: { CLAUDE_CODE_ARTIFACT: "1" },
+      expected: "1",
+    },
+  ])(
+    "sets CLAUDE_CODE_ARTIFACT=$expected with artifactsEnabled=$artifactsEnabled and inherited $inherited",
+    ({ artifactsEnabled, inherited, expected }) => {
+      const options = buildSessionOptions(
+        {
+          chromeEnabled: false,
+          disable1MContext: false,
+          artifactsEnabled,
+          sandboxEnabled: true,
+          serviceTier: "default",
+          workflowsEnabled: false,
+          baseInstructions: "You are a coder.",
+          cwd: "/tmp/worktree",
+          instructionMode: "append",
+          permissionMode: "default",
+          permissionScope: "workspace",
+        },
+        inherited,
+      );
+
+      expect(options.env?.CLAUDE_CODE_ARTIFACT).toBe(expected);
+    },
+  );
+
   it("decomposes ultracode into xhigh effort plus the ultracode settings flag", () => {
     const options = buildSessionOptions(
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         baseInstructions: "You are a coder.",
@@ -1331,6 +1365,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         baseInstructions: "You are a coder.",
@@ -1358,6 +1393,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         workflowsEnabled: false,
         serviceTier: "fast",
@@ -1378,6 +1414,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1404,6 +1441,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1429,6 +1467,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1464,6 +1503,7 @@ describe("bridge", () => {
         {
           chromeEnabled: false,
           disable1MContext: false,
+          artifactsEnabled: false,
           sandboxEnabled: true,
           workflowsEnabled: false,
           cwd: "/tmp/worktree",
@@ -1493,6 +1533,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1521,6 +1562,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1542,6 +1584,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1570,6 +1613,7 @@ describe("bridge", () => {
         {
           chromeEnabled: false,
           disable1MContext: false,
+          artifactsEnabled: false,
           sandboxEnabled: true,
           serviceTier: "default",
           workflowsEnabled: false,
@@ -1592,6 +1636,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1607,6 +1652,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1642,6 +1688,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: true,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -1665,6 +1712,7 @@ describe("bridge", () => {
       {
         chromeEnabled: false,
         disable1MContext: false,
+        artifactsEnabled: false,
         sandboxEnabled: false,
         serviceTier: "default",
         workflowsEnabled: false,
@@ -4021,7 +4069,7 @@ describe("bridge", () => {
     }
   });
 
-  it.each(["chromeEnabled", "disable1MContext"])(
+  it.each(["chromeEnabled", "disable1MContext", "artifactsEnabled"])(
     "restarts the Claude process before the next turn when %s changes",
     async (setting) => {
       const bridge = createBridgeJsonRpcTestHarness(handleLine);
@@ -4053,6 +4101,8 @@ describe("bridge", () => {
             chrome: null,
             "replay-user-messages": null,
           });
+        } else if (setting === "artifactsEnabled") {
+          expect(getLatestQueryOptions().env?.CLAUDE_CODE_ARTIFACT).toBe("1");
         } else {
           expect(
             getLatestQueryOptions().env?.CLAUDE_CODE_DISABLE_1M_CONTEXT,
@@ -4095,6 +4145,9 @@ describe("bridge", () => {
         expect(
           getLatestQueryOptions().env?.CLAUDE_CODE_DISABLE_1M_CONTEXT,
         ).toBe("0");
+        expect(getLatestQueryOptions().env).not.toHaveProperty(
+          "CLAUDE_CODE_ARTIFACT",
+        );
         await expect(readNextPromptText(getLatestQueryCall())).resolves.toBe(
           "setting turned off",
         );
@@ -5932,7 +5985,7 @@ describe("canonical model context-window hint", () => {
         options: {
           ...canonicalOptions,
           envVars: { PLUGIN_ACCESS_TOKEN: "first" },
-          providerOptions: { disable1MContext: true },
+          providerOptions: { disable1MContext: true, artifactsEnabled: true },
         },
       });
       const startResponse = await bridge.waitForResponse(1);
@@ -5956,6 +6009,7 @@ describe("canonical model context-window hint", () => {
         env: {
           PLUGIN_ACCESS_TOKEN: "second",
           CLAUDE_CODE_DISABLE_1M_CONTEXT: "1",
+          CLAUDE_CODE_ARTIFACT: "1",
         },
         resume: providerThreadId,
       });

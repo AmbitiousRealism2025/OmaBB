@@ -1341,14 +1341,26 @@ the removed `experimental_Accessory` item field show no counts until they read
 `badge`. Item ids are the keys stored in
 `sidebar.pluginPanelOrder` and `sidebar.visiblePluginPanels`, and items keep
 their identity while unchanged. `actions` covers
-`activate(id, { openInSplit })`, `goHome()`, `setVisible`, `setOrder` (unknown
+`activate(id, { target })`, `goHome({ target })`, `setVisible`,
+`setOrder` (unknown
 ids are dropped and omitted ids keep their relative order at the end),
 `openCustomize()` (bb's editor in a popover beside the navigation, after open
 menus close, returning focus to the opener), `openDetails`, and
-`disablePlugin`. `activate(id, { openInSplit: true })` opens Plugins and Skills
-in a browser tab synchronously from the user gesture; New thread and plugin
-panels retain their existing split, compact-screen and pane-limit rules.
-Search remains a command. Native shells retain their window-open policy.
+`disablePlugin`. `target` is `current`, `split`, or `tab` and the host handles
+the navigation: `split` opens or focuses a pane, replacing the focused pane
+at the pane limit. It opens a browser tab instead when the destination cannot
+be a pane, splitting is disabled, the viewport is compact, or no split layout
+exists. `tab` always opens a browser tab. Both require a synchronous user
+gesture. Home accepts `current` or `tab`, with `tab` opening the new thread
+screen. `goHome()` without options navigates in place. The bundled Navigation
+plugin requests `split` on Cmd/Ctrl-click; the host owns the fallback.
+Search remains a command at every target. Native shells
+retain their window-open policy.
+Existing plugin bundles using `activate(id, { openInSplit })` map `true`
+to `target: "split"` and `false` to `target: "current"`, using the same
+fallback rules. The SDK types only accept `{ target }`, so rebuilt plugins
+must migrate. An explicit `target` takes precedence.
+
 Calls after the caller unmounts do nothing; outside the
 sidebar the hook returns no items and inert actions.
 `experimental_useSidebarNavigationSplit(id, options?)` mirrors
@@ -1364,8 +1376,9 @@ Appearance → Navigation picker reads the same registrations.
 
 1. **Semantic items.** Confirm the action and icon variants cover current
    navigation without exposing routes or host elements.
-2. **Home.** Confirm `isHomeActive` and `goHome()` are the right Home contract
-   for rail providers, including after Settings closes the compact drawer.
+2. **Home.** Confirm `isHomeActive` and `goHome({ target })` are the
+   right Home contract for rail providers, including after Settings closes the
+   compact drawer.
 3. **Order semantics.** Confirm `setOrder`'s partial-order rule works for
    drag-and-drop providers.
 4. **Accessibility.** Validate labels, badges in accessible names,

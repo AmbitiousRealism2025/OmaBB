@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BottomAnchorContext } from "@/components/ui/bottom-anchored-scroll-body.js";
 import { conversationRow } from "@/test/fixtures/thread-timeline-rows";
 import { ThreadTimelineSurface } from "./ThreadTimelineSurface";
+import { createInertScrollPositionKeeper } from "@/test/scroll-position-keeper";
 
 vi.mock("@/hooks/queries/system-queries", () => ({
   useSystemConfig: () => ({ data: undefined }),
@@ -45,7 +46,7 @@ describe("ThreadTimelineSurface load-older control", () => {
       new DOMRect(0, 0, 100, 500),
     );
     const anchor = {
-      captureScrollAnchor: vi.fn(),
+      positionKeeper: createInertScrollPositionKeeper(),
       holdContentPosition: vi.fn(),
       getScrollElement: () => scrollElement,
       isAtBottom: false,

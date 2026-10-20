@@ -42,6 +42,7 @@ import {
 } from "./secondaryPanelSizing";
 import {
   RIGHT_PANEL_TOGGLE_ICON_NAME,
+  RIGHT_PANEL_TOGGLE_SHORTCUT_HINT_CLASS,
   resolveConversationCollapseControl,
 } from "./panelToggleControlState";
 import { SecondaryPanelHostLayoutContext } from "./SecondaryPanelHostLayoutContext";
@@ -567,7 +568,7 @@ function ThreadSecondaryPanelContent({
       <Icon name={RIGHT_PANEL_TOGGLE_ICON_NAME} />
       <AppCommandShortcutHint
         shortcut={togglePanelShortcut}
-        className="absolute right-full mr-1"
+        className={RIGHT_PANEL_TOGGLE_SHORTCUT_HINT_CLASS}
       />
     </Button>
   );

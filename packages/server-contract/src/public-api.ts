@@ -136,6 +136,7 @@ import type {
   HostEnrollmentCommandResponse,
   HostReconnectResponse,
   HostListQuery,
+  HostDeleteQuery,
   HostActionResponse,
   HostCloneDefaultPathQuery,
   HostCloneDefaultPathResponse,
@@ -340,6 +341,7 @@ import {
   environmentStatusQuerySchema,
   hostDirectoryQuerySchema,
   hostListQuerySchema,
+  hostDeleteQuerySchema,
   hostCloneDefaultPathQuerySchema,
   hostFileListRequestSchema,
   hostFileReadRequestSchema,
@@ -947,7 +949,9 @@ export const publicApiRoutes = {
     delete: defineRoute({
       path: "/hosts/:id",
       method: "delete",
-      request: noRequest<PathId>(),
+      request: optionalQueryRequest<PathId, HostDeleteQuery>(
+        hostDeleteQuerySchema,
+      ),
       response: jsonResponse<{ ok: true }>(),
     }),
     directory: defineRoute({

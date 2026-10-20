@@ -73,6 +73,9 @@ const SCROLL_ANCHOR_CAPTURE_THROTTLE_MS = 100;
 const COARSE_SCROLL_ANCHOR_CAPTURE_THROTTLE_MS = 250;
 const SCROLL_ANCHOR_RESTORE_MAX_ATTEMPTS = 8;
 const CONTENT_POSITION_HOLD_MS = 250;
+const NATIVE_PAGE_SCROLL_KEYS = new Set(["PageDown", "PageUp", " "]);
+const EDITABLE_KEY_TARGET_SELECTOR =
+  "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
 const TIMELINE_ROW_ID_SELECTOR = "[data-timeline-row-id]";
 const TOP_LEVEL_TIMELINE_ROW_LIST_SELECTOR =
   '[data-timeline-row-list="top-level"]';
@@ -234,6 +237,8 @@ export function BottomAnchoredScrollBody({
   const isPointerCoarse = usePointerCoarse();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollContentRef = useRef<HTMLDivElement>(null);
+  const scrollFooterRef = useRef<HTMLDivElement>(null);
+  const hasFooter = Boolean(footer);
   const shouldStickToBottomRef = useRef(true);
   const scrollToTopInProgressRef = useRef(false);
   const userScrollIntentUntilRef = useRef(0);
@@ -934,6 +939,41 @@ export function BottomAnchoredScrollBody({
     };
   }, [flushScrollAnchorCapture]);
 
+  useLayoutEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    const scrollFooter = scrollFooterRef.current;
+    if (!scrollArea || !scrollFooter) return;
+
+    let clearScrollPaddingFrame: number | null = null;
+    const clearScrollPadding = () => {
+      clearScrollPaddingFrame = null;
+      scrollArea.style.removeProperty("scroll-padding-bottom");
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!NATIVE_PAGE_SCROLL_KEYS.has(event.key)) return;
+      const target = event.target;
+      if (!(target instanceof Node) || scrollFooter.contains(target)) return;
+      if (target !== document.body && !scrollArea.contains(target)) return;
+      if (
+        target instanceof Element &&
+        target.closest(EDITABLE_KEY_TARGET_SELECTOR)
+      ) {
+        return;
+      }
+      scrollArea.style.scrollPaddingBottom = `${scrollFooter.getBoundingClientRect().height}px`;
+      clearScrollPaddingFrame ??= requestAnimationFrame(clearScrollPadding);
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      if (clearScrollPaddingFrame !== null) {
+        cancelAnimationFrame(clearScrollPaddingFrame);
+      }
+      scrollArea.style.removeProperty("scroll-padding-bottom");
+    };
+  }, [hasFooter]);
+
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
     const scrollContent = scrollContentRef.current;
@@ -1047,6 +1087,7 @@ export function BottomAnchoredScrollBody({
               <div className="scroll-bottom-anchor" aria-hidden />
               {footer ? (
                 <div
+                  ref={scrollFooterRef}
                   data-scroll-footer=""
                   className="sticky bottom-0 z-20 shrink-0 [overflow-anchor:none]"
                 >

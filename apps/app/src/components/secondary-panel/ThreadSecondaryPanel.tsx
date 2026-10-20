@@ -911,6 +911,15 @@ function ThreadSecondaryPanelContent({
               onFileFilterChange={setGitDiffFileFilter}
               areAllFilesCollapsed={areAllCollapsed}
               isCollapseAllDisabled={!hasFiles || isDiffFilesLoading}
+              collapseAllDisabledReason={
+                isDiffFilesLoading
+                  ? null
+                  : diffFiles.length === 0
+                    ? "No changes"
+                    : !hasFiles
+                      ? "No files match filter"
+                      : null
+              }
               onToggleAllCollapsed={toggleAllCollapsed}
               displayMode={gitDiffDisplayMode}
               onDisplayModeChange={handleGitDiffDisplayModeChange}

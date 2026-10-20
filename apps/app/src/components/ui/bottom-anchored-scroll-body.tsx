@@ -401,6 +401,7 @@ export function BottomAnchoredScrollBody({
         return;
       }
 
+      cancelPendingScrollRestore();
       const maxScrollOffset = refreshMaxScrollOffset(scrollArea);
       scrollArea.scrollTop = Math.min(
         maxScrollOffset,
@@ -421,7 +422,12 @@ export function BottomAnchoredScrollBody({
 
       cancelQueuedRestore();
     },
-    [cancelQueuedRestore, queueBottomRestore, refreshMaxScrollOffset],
+    [
+      cancelPendingScrollRestore,
+      cancelQueuedRestore,
+      queueBottomRestore,
+      refreshMaxScrollOffset,
+    ],
   );
 
   const captureScrollAnchor = useCallback(() => {

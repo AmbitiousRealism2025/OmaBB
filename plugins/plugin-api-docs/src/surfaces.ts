@@ -3,6 +3,7 @@ export interface PluginSurface {
   title: string;
   summary: string;
   bullets: string[];
+  reference?: string[];
   tagline?: string;
   apiSymbols: string[];
   firstParty?: string[];
@@ -939,10 +940,21 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         summary:
           "Use RPC, HTTP, WebSocket, and realtime messages to connect the plugin. With this, a plugin can:",
         bullets: [
-          "Call its server from its UI with schema-checked RPC",
+          "Call its server from its UI with schema-checked RPC and typed refusals",
           "Receive webhooks and serve HTTP or WebSocket routes",
-          "Push live updates to open bb windows",
+          "Share live reads and optimistic updates; finish pending writes at server acknowledgement",
           "Publish RPC methods other plugins can discover",
+        ],
+        reference: [
+          "All live hooks take { contract, method, ... } and infer their types: plain reads add input, keyed reads add keys and optional select, and mutations add optional optimistic",
+          "Data retains successful values and shared predictions during refresh errors. Plain reads start undefined; keyed reads expose loaded rows, initially an empty record, through select",
+          "isLoading means an enabled read is fetching never-loaded data, including missing requested keys. isFetching includes background attempts; keyed views share their method's activity",
+          "error is an experimental_PluginRpcCallError or null. Success clears it; retrying a first load clears its previous error while loading. refetch forces a read, waits through retries, and records failures in error without rejecting",
+          "Reads stay fresh for two seconds without polling. Focus does not refetch while BB's realtime connection is healthy; while disconnected, focus/browser-online events recheck stale active reads. BB reconnect invalidates all plugin reads. Page hiding cancels active attempts and resume restarts those cancelled reads",
+          "Invalidations refresh immediately. Network/abort failures retry twice at 250 ms, HTTP failures never retry, and writes never retry automatically. Tags are plain strings shared between read dependencies and write invalidations",
+          "mutate, isPending and pendingInputs settle at write acknowledgement; matched reads refresh in the background. Shared predictions stay until confirmed reads arrive, or roll back on write failure",
+          "Optimistic updaters must be pure and replayable; generate IDs and timestamps before mutate",
+          "RPC error codes may grow: switch on error.code with a fallback. Newer server codes become unknown_error with the original serverCode; transport_error and invalid_response cover client failures. CLI output preserves unknown codes",
         ],
         apiSymbols: [
           "PluginRpc",
@@ -954,6 +966,21 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "PluginHttp",
           "PluginRealtime",
           "useRpc",
+          "experimental_useRpcQuery",
+          "experimental_useRpcKeyedQuery",
+          "experimental_useRpcMutation",
+          "experimental_useRpcRefresh",
+          "ExperimentalRpcQueryState",
+          "ExperimentalRpcKeyedMethod",
+          "ExperimentalRpcKeyedValue",
+          "experimental_PluginRpcCallError",
+          "ExperimentalRpcKeyedQueryState",
+          "ExperimentalRpcQueryOptions",
+          "ExperimentalRpcMutationOptions",
+          "ExperimentalRpcOptimisticCache",
+          "ExperimentalRpcMutationState",
+          "PluginRpc.experimental_invalidate",
+          "PluginRpc.experimental_invalidateAll",
           "PluginRpcClient",
           "useRealtime",
           "useRealtimeConnectionState",
@@ -965,6 +992,8 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "defineRpcContract",
           "PluginRpcContract",
           "PluginRpcError",
+          "PluginRpcErrorCode",
+          "experimental_PluginRpcRefusal",
           "PluginRpcHandlers",
         ],
         firstParty: [

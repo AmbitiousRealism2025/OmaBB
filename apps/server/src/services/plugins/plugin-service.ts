@@ -1,3 +1,4 @@
+import { rpcResponseTags } from "@get-bb/plugin-sdk/internal/rpc-tags";
 import type {
   PluginRpcDiscoveryQuery,
   PublishedPluginRpcMethod,
@@ -34,6 +35,7 @@ import {
   enforcePluginCliOutputLimit,
   normalizePluginAgentConfiguration,
   normalizeRpcJsonResult,
+  readPluginRpcRefusal,
   RESERVED_AGENT_TOOL_NAMES,
   adoptHttpRouteResponse,
   validatePluginProviderEnvEntries,
@@ -405,7 +407,14 @@ export interface PluginService {
     input: unknown,
     caller: ExperimentalPluginRpcCaller,
   ): Promise<
-    { ok: true; result: JsonValue } | { ok: false; error: PluginRpcError }
+    | {
+        ok: true;
+        result: JsonValue;
+        tags: string[];
+        keyTags: Record<string, string[]>;
+        invalidated: string[];
+      }
+    | { ok: false; error: PluginRpcError }
   >;
   httpToken(
     id: string,
@@ -2139,18 +2148,36 @@ export function createPluginService(deps: PluginServiceDeps): PluginService {
           "input",
           throwRpcBoundaryError,
         );
-        const result = await handler.handler(parsedInput, {
-          experimental_caller: caller,
-        });
+        let result: unknown;
+        try {
+          result = await handler.handler(parsedInput, {
+            experimental_caller: caller,
+          });
+        } catch (error) {
+          const refusal = readPluginRpcRefusal(error);
+          if (refusal === null) throw error;
+          return { ok: false as const, error: refusal };
+        }
         const parsedOutput = await validateRpcValue(
           handler.outputSchema,
           result,
           "output",
           throwRpcBoundaryError,
         );
-        return normalizeRpcJsonResult(parsedOutput, throwRpcBoundaryError);
+        const resultValue = normalizeRpcJsonResult(
+          parsedOutput,
+          throwRpcBoundaryError,
+        );
+        const envelope = rpcResponseTags(
+          handler.declarations,
+          parsedInput,
+          parsedOutput,
+        );
+        if (envelope.invalidated.length > 0)
+          deps.hub.notifyPluginChanged(id, envelope.invalidated);
+        return { ok: true as const, result: resultValue, ...envelope };
       });
-      if (outcome.ok) return { ok: true, result: outcome.value };
+      if (outcome.ok) return outcome.value;
       if (outcome.cause instanceof PluginRpcBoundaryError) {
         return { ok: false, error: outcome.cause.rpcError };
       }

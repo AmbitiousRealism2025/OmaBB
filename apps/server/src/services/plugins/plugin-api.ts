@@ -397,6 +397,9 @@ function wrapSdkForPlugin(
       spawn(args: ThreadSpawnArgs) {
         return sdk.threads.spawn(withPluginThreadAttribution(args, pluginId));
       },
+      send(args) {
+        return sdk.threads.send({ ...args, originPluginId: pluginId });
+      },
     },
   };
 }

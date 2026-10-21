@@ -445,6 +445,10 @@ type PathThreadInteractionId = {
 
 export const UI_PREFERENCES_TAG = "ui-preferences";
 
+export function environmentPullRequestTag(environmentId: string): string {
+  return `environment-pull-request:${environmentId}`;
+}
+
 export const publicApiRoutes = {
   promptHistory: {
     list: defineRoute({
@@ -1193,6 +1197,7 @@ export const publicApiRoutes = {
       method: "get",
       request: noRequest<PathId>(),
       response: jsonResponse<EnvironmentPullRequestResponse>(),
+      tags: ({ params }) => [environmentPullRequestTag(params.id)],
     }),
     diff: defineRoute({
       path: "/environments/:id/diff",

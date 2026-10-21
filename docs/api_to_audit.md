@@ -3233,3 +3233,25 @@ field introduces no separate backend or headless side effect.
 - `experimental_PluginRpcCallError` is exported from the SDK root and app entry and is the error of live read/mutation hooks and every rejected `mutate`. It always has `code: PluginRpcErrorCode`, `message`, optional validated issues and optional HTTP status. `transport_error`, `invalid_response` and `unknown_error` cover client failures. The union may grow: consumers need a fallback; unknown server codes map to `unknown_error` and remain in `serverCode`. CLI output preserves newer codes without assuming an exhaustive list. Core callers use the same HTTP, SDK and command error boundaries; bb-account exercises expected refusals. Stabilize after version-skew, transport, malformed-response and refusal checks.
 - `mutate`, `isPending` and `pendingInputs` finish at write acknowledgement. Core `runRouteMutation` has the same semantics through `runTaggedMutation`; ui-preferences saves the acknowledged revision independently of refresh completion. Cache predictions survive background refreshes and failed rereads until fresh confirmed data arrives. Write rejection rolls back. Owner tests cover acknowledgement, held refreshes, reconciliation and concurrent predictions.
 - BB read state means: `data` is the latest successful value plus predictions, retained during refresh errors (plain reads start undefined; keyed selections receive loaded rows, initially an empty record). `isLoading` means an enabled read is fetching never-loaded requested data. `isFetching` includes background attempts; keyed views share method activity. `error` records the completed read failure and clears on success; retrying a first load clears its old error while loading. `refetch` forces a read and waits through retries; failure remains in `error` and its promise resolves. Production freshness is two seconds without polling. Focus does not refetch while BB's realtime connection is healthy; while disconnected, focus/browser-online events recheck stale active reads. BB reconnect invalidates all plugin reads regardless of freshness. Page hiding cancels active attempts and resume restarts cancelled reads. Invalidations refresh immediately. Tags remain plain strings. Network/abort failures retry twice with 250 ms delay, HTTP failures never retry, and writes never retry automatically. No query-library options are exposed.
+
+## Page titles
+
+`PluginNavPanelRegistration.experimental_usePageTitle(props)` returns
+`ExperimentalPageTitle | null`: either `title` or
+`breadcrumbs: { label, to? }[]`, with an optional `windowTitle` override.
+The host calls this React hook in each pane's plugin scope with its own
+`subPath`. Content appears after the panel icon/name. Breadcrumb links must
+be absolute app routes starting with a single slash. The focused pane supplies
+the window title, defaulting to the leaf/title combined with the panel name.
+Null restores defaults. A title hook failure clears the title without crashing
+the body; navigation and plugin reload retry it. The host isolates hook
+lifecycles by pane, route and plugin generation.
+
+Core Tools, Skills and Plugins use the same hook host and title provider;
+Automations registers its own hook and shares its detail query with the body.
+The Plugin Guide full-page panels card owns the API documentation.
+`renderSlot` evaluates the registered hook in its slot scope and exposes its
+current result as `RenderedSlotInspectionState.experimental_pageTitle`;
+audit test-host lifecycle parity before stabilization.
+Before stabilization, audit focus changes, same-plugin splits, loading,
+back/forward navigation, crash/reload recovery, links and overflow.

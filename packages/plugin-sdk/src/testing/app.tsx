@@ -24,6 +24,7 @@ import {
 } from "react";
 import { act, render, type RenderResult } from "@testing-library/react";
 import {
+  type ExperimentalPageTitle,
   type BbContext,
   type BbNavigate,
   type BranchesState,
@@ -1957,6 +1958,8 @@ export interface RenderedSlotBehaviorDrivers {
 
 /** Read-only call/write logs produced while the slot is mounted. */
 export interface RenderedSlotInspectionState {
+  /** The registered page title hook's current result; null after unmount. */
+  readonly experimental_pageTitle: ExperimentalPageTitle | null;
   /** Every `useRpc().call`, in order. */
   readonly rpcCalls: RpcCall[];
   /** Every `useBbNavigate()` call, in order. */
@@ -2053,7 +2056,10 @@ export function renderSlot<
   Props extends object,
   Contract extends PluginRpcContract = PluginRpcContract,
 >(
-  registration: { component: ComponentType<Props> },
+  registration: {
+    component: ComponentType<Props>;
+    experimental_usePageTitle?: (props: Props) => ExperimentalPageTitle | null;
+  },
   props: Props,
   options: RenderSlotOptions<Contract> = {},
 ): RenderedSlot {
@@ -2705,10 +2711,22 @@ export function renderSlot<
     composerLog.textEffect = null;
     composerLog.inputLocked = false;
   };
+  let pageTitle: ExperimentalPageTitle | null = null;
+  const usePageTitle = registration.experimental_usePageTitle;
+  function SlotPageTitle({ children }: { children: ReactNode }) {
+    const value = usePageTitle ? usePageTitle(props) : null;
+    useLayoutEffect(() => {
+      pageTitle = value;
+      return () => {
+        pageTitle = null;
+      };
+    }, [value]);
+    return <>{children}</>;
+  }
   const renderSlotTree = (ui: ReactNode): ReactElement => (
     <SlotEnvContext.Provider value={env}>
       <SlotLifecycleGuard onUnmount={releaseComposerOwnership}>
-        {ui}
+        <SlotPageTitle>{ui}</SlotPageTitle>
       </SlotLifecycleGuard>
     </SlotEnvContext.Provider>
   );
@@ -2790,6 +2808,9 @@ export function renderSlot<
       setComposerScope,
     },
     inspection: {
+      get experimental_pageTitle() {
+        return pageTitle;
+      },
       rpcCalls,
       navigateCalls,
       experimental_fixedTabOpenCalls,
@@ -2799,6 +2820,9 @@ export function renderSlot<
       sdkCalls,
       experimental_clipboardWrites,
       composer: composerLog,
+    },
+    get experimental_pageTitle() {
+      return pageTitle;
     },
     lifecycle: { rerender: rerenderSlot, unmount: unmountSlot },
   };

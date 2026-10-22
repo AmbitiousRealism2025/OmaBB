@@ -76,6 +76,7 @@ describe("bb.onInstall", () => {
       appVersion: "0.9.0",
       loadTimeoutMs: 5000,
       installHandlerTimeoutMs: 200,
+      serviceStopTimeoutMs: 100,
     });
   });
 

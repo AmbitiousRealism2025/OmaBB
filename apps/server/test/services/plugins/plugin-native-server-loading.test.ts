@@ -74,13 +74,13 @@ export default function plugin() {
     ).href;
     const script = `
 import pino from "pino";
-import { createConnection, migrate, upsertInstalledPlugin } from "@bb/db";
+import { upsertInstalledPlugin } from "@bb/db";
+import { createMigratedConnection } from "@bb/db/testing";
 import { createPluginService } from ${JSON.stringify(runtimeUrl)};
 import { createAiServiceRegistry } from ${JSON.stringify(aiRegistryUrl)};
 import { createNoopTelemetryService } from ${JSON.stringify(telemetryUrl)};
 const [rootDir, dataDir] = process.argv.slice(1);
-const db = createConnection(":memory:");
-migrate(db);
+const db = createMigratedConnection();
 upsertInstalledPlugin(db, {
   id: "native-externals",
   source: "git:github.com/acme/bb-plugin-native-externals@v1",
@@ -195,13 +195,12 @@ export default function plugin(bb: BbPluginApi) {
     ).href;
     const script = `
 import pino from "pino";
-import { createConnection, migrate } from "@bb/db";
+import { createMigratedConnection } from "@bb/db/testing";
 import { createPluginService } from ${JSON.stringify(serviceUrl)};
 import { createAiServiceRegistry } from ${JSON.stringify(aiRegistryUrl)};
 import { createNoopTelemetryService } from ${JSON.stringify(telemetryUrl)};
 const [rootDir, dataDir] = process.argv.slice(1);
-const db = createConnection(":memory:");
-migrate(db);
+const db = createMigratedConnection();
 const service = createPluginService({
   aiServices: createAiServiceRegistry(),
   telemetry: createNoopTelemetryService(),
@@ -316,13 +315,12 @@ process.stdout.write(JSON.stringify(result));
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import pino from "pino";
-import { createConnection, migrate } from "@bb/db";
+import { createMigratedConnection } from "@bb/db/testing";
 import { createPluginService } from ${JSON.stringify(serviceUrl)};
 import { createAiServiceRegistry } from ${JSON.stringify(aiRegistryUrl)};
 import { createNoopTelemetryService } from ${JSON.stringify(telemetryUrl)};
 const [importedDir, importerDir, dataDir] = process.argv.slice(1);
-const db = createConnection(":memory:");
-migrate(db);
+const db = createMigratedConnection();
 const service = createPluginService({
   aiServices: createAiServiceRegistry(),
   telemetry: createNoopTelemetryService(),

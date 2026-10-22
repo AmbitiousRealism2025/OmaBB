@@ -277,9 +277,6 @@ export {
   experimental_THREAD_INFO_ROW_GROUPS,
   experimental_THREAD_INFO_SECTION_GROUPS,
 } from "./thread-info-groups.js";
-export const experimental_useSidebarThreadPullRequest = runtimeFunction(
-  "experimental_useSidebarThreadPullRequest",
-);
 export const experimental_useSidebarThreadSplit = runtimeFunction(
   "experimental_useSidebarThreadSplit",
 );

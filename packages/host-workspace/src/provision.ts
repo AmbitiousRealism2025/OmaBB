@@ -10,14 +10,9 @@ import type {
   DiffFilesResult,
   DiffPatchArgs,
   DiffPatchEntry,
-  PullRequestActionOptions,
   StatusOptions,
 } from "./workspace.js";
 import { Workspace } from "./workspace.js";
-import type {
-  GitHostCliOptions,
-  GitHostPullRequestLookup,
-} from "./git-host.js";
 import {
   inspectGitRepository,
   readDefaultBranch,
@@ -72,13 +67,6 @@ export interface HostWorkspace {
   getDiff(options?: DiffOptions): Promise<DiffResult>;
   diffFiles(args: DiffFilesArgs): Promise<DiffFilesResult>;
   diffPatch(args: DiffPatchArgs): Promise<DiffPatchEntry[]>;
-  getPullRequest(
-    options?: GitHostCliOptions,
-  ): Promise<GitHostPullRequestLookup>;
-  runPullRequestAction(
-    action: PullRequestActionOptions,
-    options?: GitHostCliOptions,
-  ): Promise<void>;
 
   commit(options: CommitOptions): Promise<CommitResult>;
 }
@@ -158,19 +146,6 @@ class ProvisionedHostWorkspace implements HostWorkspace {
 
   diffPatch(args: DiffPatchArgs): Promise<DiffPatchEntry[]> {
     return this.ws.diffPatch(args);
-  }
-
-  getPullRequest(
-    options?: GitHostCliOptions,
-  ): Promise<GitHostPullRequestLookup> {
-    return this.ws.getPullRequest(options);
-  }
-
-  runPullRequestAction(
-    action: PullRequestActionOptions,
-    options?: GitHostCliOptions,
-  ): Promise<void> {
-    return this.ws.runPullRequestAction(action, options);
   }
 
   commit(options: CommitOptions): Promise<CommitResult> {

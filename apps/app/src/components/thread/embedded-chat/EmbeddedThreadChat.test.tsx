@@ -234,6 +234,10 @@ vi.mock("@/hooks/useCommandSuggestions", () => ({
   }),
 }));
 
+vi.mock("@/hooks/queries/thread-panel-queries", () => ({
+  useThreadQueuedMessages: () => ({ data: mocks.queuedMessages }),
+}));
+
 vi.mock("@/hooks/queries/thread-queries", () => ({
   useThread: (threadId: string) => ({
     data:
@@ -247,7 +251,6 @@ vi.mock("@/hooks/queries/thread-queries", () => ({
           }
         : undefined,
   }),
-  useThreadQueuedMessages: () => ({ data: mocks.queuedMessages }),
   useThreadPendingInteractions: () => ({
     data: mocks.pendingInteractions,
     isError: mocks.pendingInteractionsIsError,

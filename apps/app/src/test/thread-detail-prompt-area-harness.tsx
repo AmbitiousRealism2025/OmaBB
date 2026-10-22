@@ -740,6 +740,9 @@ vi.mock("@/hooks/queries/thread-queries", () => ({
   orderPendingInteractions: (
     interactions: readonly PendingInteraction[] | undefined,
   ) => interactions ?? [],
+}));
+
+vi.mock("@/hooks/queries/thread-panel-queries", () => ({
   useThreadPromptHistory: (threadId: string, options: unknown) => {
     promptAreaMocks.useThreadPromptHistory(threadId, options);
     return { data: [] };

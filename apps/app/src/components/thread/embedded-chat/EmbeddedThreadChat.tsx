@@ -63,8 +63,8 @@ import {
   orderPendingInteractions,
   useThread,
   useThreadPendingInteractions,
-  useThreadQueuedMessages,
 } from "@/hooks/queries/thread-queries";
+import { useThreadQueuedMessages } from "@/hooks/queries/thread-panel-queries";
 import { useThreadDefaultExecutionOptions } from "@/hooks/queries/thread-default-execution-options-query";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import {

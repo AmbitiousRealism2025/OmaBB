@@ -125,11 +125,11 @@ import {
   useRestoreThreadEnvironment,
   useUnarchiveThread,
 } from "@/hooks/mutations/thread-state-mutations";
+import { orderPendingInteractions } from "@/hooks/queries/thread-queries";
 import {
-  orderPendingInteractions,
   useThreadQueuedMessages,
   useThreadPromptHistory,
-} from "@/hooks/queries/thread-queries";
+} from "@/hooks/queries/thread-panel-queries";
 import { useThreadDefaultExecutionOptions } from "@/hooks/queries/thread-default-execution-options-query";
 import {
   getMutationErrorMessage,

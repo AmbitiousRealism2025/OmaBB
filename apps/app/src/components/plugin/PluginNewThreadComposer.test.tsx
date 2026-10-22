@@ -358,7 +358,7 @@ vi.mock("@/hooks/queries/system-queries", () => ({
         },
 }));
 
-vi.mock("@/hooks/queries/thread-queries", () => ({
+vi.mock("@/hooks/queries/thread-panel-queries", () => ({
   useThreadStorageFiles: () => ({
     data: undefined,
     error: null,

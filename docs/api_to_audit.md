@@ -930,6 +930,21 @@ Docs: `backend-sdk.md`.
 2. **Batch size.** 200 ids per request; callers chunk. Revisit if the
    attributes layer replaces per-registration reads.
 
+## `experimental_useExperiment` (`@get-bb/plugin-sdk/app`)
+
+`experimental_useExperiment(key)` returns whether the bb experiment `key` is
+on, from the same live system config core reads (Settings → Experiments,
+`bb settings experiment`). It is false while config loads and for unknown
+keys. First caller: the built-in thread list, which gates multi-row selection
+on `sidebarMultiSelect`.
+
+**Audit before stabilizing.**
+
+1. **Key type.** Keys are plain strings so the SDK does not ship bb's
+   experiment list; decide whether to export a typed key union instead.
+2. **Plugin-owned experiments.** Decide whether plugins should declare their
+   own experiments in Settings → Experiments rather than only read bb's.
+
 ## `bb.sdk.threads.experimental_listAncestors`
 
 `POST /threads/ancestors` with `{ threadIds }` (1–200 ids) returns
@@ -2485,7 +2500,11 @@ Docs: `frontend-registration.md`.
    host's engage threshold; that `splitProps` staying an open object is the
    right forward-compatible shape, or whether it should narrow to a named
    handler; and that exposing the full `panes` array does not leak more
-   layout state than a row needs.
+   layout state than a row needs. `options.dragThreadIds` lets a row in a
+   multi-row selection carry every selected thread: such a drag offers no
+   split targets and drops onto a composer as one mention per thread (the
+   built-in thread list is the caller). Confirm a mentions-only multi-drag is
+   right, or whether it should open several panes.
 9. **Archive selection and machine list.** Audit archive-only
    loading/errors, combined views, pagination retries, and archived row
    actions. Audit empty machine sections, machine removal, rename updates, and

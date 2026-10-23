@@ -72,6 +72,7 @@ export const gitHubPullRequestViewSchema = z
     inMergeQueue: z.boolean().nullable(),
     baseRefName: z.string(),
     headRefName: z.string(),
+    headRefOid: z.string().nullable(),
     updatedAt: z.string().datetime(),
     checks: z.array(checkSchema),
     reviewDecision: reviewDecisionSchema.nullable(),
@@ -284,8 +285,20 @@ const hostPullRequestActionResultSchema = z.discriminatedUnion("ok", [
 
 export const githubPrStatusHostContract = defineRpcContract({
   view: {
-    input: z.object({ path: z.string().min(1) }).strict(),
+    input: z
+      .object({
+        path: z.string().min(1),
+        url: z.string().url().nullable(),
+        refresh: z.boolean(),
+      })
+      .strict(),
     output: hostPullRequestLookupSchema,
+  },
+  upstream: {
+    input: z.object({ path: z.string().min(1) }).strict(),
+    output: z
+      .object({ oid: z.string().nullable(), branchName: z.string().nullable() })
+      .strict(),
   },
   act: {
     input: z

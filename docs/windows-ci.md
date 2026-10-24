@@ -42,7 +42,8 @@ suite exactly once:
 
 - `server-1` to `server-3`: `@bb/server`, split by file into three Vitest
   shards.
-- `app-1` to `app-4`: `@bb/app`, split the same way into four.
+- `app-1` to `app-4`: `@bb/app`, split the same way into four, with four
+  Vitest workers per runner.
 - `plugins-1`: the provider plugins (`bb-plugin-provider-*`) and the three
   other slowest plugin suites: Tasks, Connect, and the thread list. This shard
   installs Bun, which the Pi plugin's runtime regression requires in CI.

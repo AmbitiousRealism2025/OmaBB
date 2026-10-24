@@ -1412,7 +1412,6 @@ contract or should be inferred from a read/write method kind, whether one
 retry is enough for plugin calls with long timeouts, and whether the
 cancelled first attempt should count against worker lifetime.
 
-
 ## Fixed-tab targets (`experimental_target`, `experimental_useAppPanel`, and `experimental_useFixedTabTarget`)
 
 **Kept experimental.** Fixed tabs now register through `experimental_tab`; the
@@ -3627,3 +3626,20 @@ Before stabilization, audit Windows/junction behavior, filesystem mutation durin
 scans, provider-native precedence, traversal-limit reporting, and duplicate aliases
 through read/write/delete. Exercise packaged provider forks and compare live
 provider catalogs. Then rename project-wide and remove this entry.
+
+## `PluginProviderOptionDescriptor.experimental_icon`
+
+An optional icon on a declared service tier: a host glyph name, drawn filled
+like the default `Zap`, or a declared icon `"<pluginId>/<name>"` from the
+plugin's `bb.branding.experimental_icons`. The model picker trigger and the
+single-tier toggle row show it when that tier is selected; Codex declares
+`"provider-codex/ultrafast"`, a double bolt shipped in its own `icons/`.
+Plugin-relative paths are rejected, and a declared icon must be one of the
+registering plugin's, checked with the provider icon at
+`bb.providers.register`. The server projects it onto
+`ProviderInfo.serviceTiers[].icon`; reasoning levels ignore it.
+
+Docs: `providers.md`.
+
+Before stabilization, decide whether `model/list` `supportedServiceTiers` may
+override the icon and whether reasoning levels should render it.

@@ -1,0 +1,220 @@
+name: OmaBB Release
+
+# Builds the OmaBB desktop AppImage for Linux x64 and arm64 and, when asked,
+# publishes both to a versioned release plus the moving desktop-latest
+# release the in-app updater reads from.
+#
+# Versions are <upstream desktop version>-omabb.<run number>, set in the CI
+# checkout only, so committed package.json files stay identical to upstream
+# and every run sorts newer than the last for electron-updater.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the AppImages as a release and update desktop-latest"
+        required: true
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: "22.x"
+  PNPM_VERSION: "9.15.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: omabb-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    name: Linux ${{ matrix.arch }} AppImage
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04 on purpose: the build machine's glibc is the oldest one the
+          # AppImage runs on, matching upstream's x64 AppImage.
+          - arch: x64
+            runner: ubuntu-22.04
+            uname: x86_64
+            build_task: desktop:build:linux
+            version_feed: true
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+            uname: aarch64
+            build_task: desktop:build:linux:arm64
+            version_feed: false
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify runner architecture
+        run: test "$(uname -m)" = "${{ matrix.uname }}"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Install AppImage FUSE runtime
+        uses: ./.github/actions/install-appimage-fuse
+        timeout-minutes: 5
+
+      - name: Install Electron runtime libraries and Xvfb
+        # The packaged smoke checks open a real window on a virtual display.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libgtk-3-0 \
+            libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+            libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+            libgbm1 libasound2
+
+      - name: Typecheck desktop and launcher
+        run: pnpm exec turbo run typecheck --filter=@bb/desktop --filter=bb-app --output-logs=new-only
+
+      - name: Install Electron before parallel tests
+        run: ELECTRON_RUN_AS_NODE=1 pnpm --filter @bb/desktop exec electron --version
+
+      - name: Test desktop and launcher
+        run: pnpm exec turbo run test --filter=@bb/desktop --filter=bb-app --force --output-logs=new-only
+
+      - name: Set OmaBB version
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs";
+            const path = "apps/desktop/package.json";
+            const pkg = JSON.parse(readFileSync(path, "utf8"));
+            pkg.version = `${pkg.version}-omabb.${process.env.GITHUB_RUN_NUMBER}`;
+            writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+            console.log(`OmaBB desktop version ${pkg.version}`);
+          '
+
+      - name: Package AppImage
+        run: pnpm exec turbo run ${{ matrix.build_task }} --filter=@bb/desktop --output-logs=new-only
+
+      - name: Smoke test packaged desktop app
+        run: xvfb-run -a pnpm exec turbo run smoke:packaged --filter=@bb/desktop --force --output-logs=new-only
+
+      - name: Smoke test AppImage mount lifecycle
+        run: xvfb-run -a pnpm exec turbo run smoke:appimage-lifecycle --filter=@bb/desktop --force --output-logs=new-only
+
+      - name: Generate desktop version feed
+        # One desktop-version-linux.json serves both arches; bb's update check
+        # reads only its version.
+        if: matrix.version_feed
+        run: pnpm --dir apps/desktop run desktop:version-feed
+
+      - name: Upload AppImage artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: omabb-linux-${{ matrix.arch }}
+          path: |
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-linux*.yml
+            apps/desktop/release/desktop-version-linux.json
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: linux
+    if: inputs.publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download AppImage artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: omabb-linux-*
+          path: release
+          merge-multiple: true
+
+      - name: Publish versioned and desktop-latest releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          BASE_VERSION="$(node -p "require('./apps/desktop/package.json').version")"
+          VERSION="${BASE_VERSION}-omabb.${GITHUB_RUN_NUMBER}"
+          VERSION_TAG="desktop-v${VERSION}"
+          LATEST_TAG="desktop-latest"
+
+          shopt -s nullglob
+          ASSETS=(release/*.AppImage release/*.blockmap release/latest-linux*.yml release/desktop-version-linux.json)
+          for required in "release/OmaBB-${VERSION}-x86_64.AppImage" "release/OmaBB-${VERSION}-arm64.AppImage" \
+            release/latest-linux.yml release/latest-linux-arm64.yml release/desktop-version-linux.json; do
+            if [[ ! -e "$required" ]]; then
+              echo "::error::Missing release asset $required"
+              ls -la release
+              exit 1
+            fi
+          done
+
+          if gh release view "$VERSION_TAG" >/dev/null 2>&1; then
+            echo "::error::Release $VERSION_TAG already exists; refusing to change a published release."
+            exit 1
+          fi
+
+          gh release create "$VERSION_TAG" "${ASSETS[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "OmaBB ${VERSION}" \
+            --notes "OmaBB ${VERSION}, built from ${GITHUB_SHA} on upstream bb ${BASE_VERSION}. Linux x86_64 and arm64 AppImages." \
+            --latest
+
+          # desktop-latest is what the in-app updater reads. Move its tag and
+          # replace its assets in place so stale AppImages never linger.
+          git tag -f "$LATEST_TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/${LATEST_TAG}"
+
+          if gh release view "$LATEST_TAG" >/dev/null 2>&1; then
+            gh release edit "$LATEST_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "OmaBB latest" \
+              --notes "Update feed for the OmaBB desktop app. Download the AppImage from the newest versioned release." \
+              --latest=false
+            gh release view "$LATEST_TAG" --json assets --jq '.assets[].name' | while IFS= read -r asset_name; do
+              if [[ -n "$asset_name" ]]; then
+                gh release delete-asset "$LATEST_TAG" "$asset_name" --yes
+              fi
+            done
+            gh release upload "$LATEST_TAG" "${ASSETS[@]}"
+          else
+            gh release create "$LATEST_TAG" "${ASSETS[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "OmaBB latest" \
+              --notes "Update feed for the OmaBB desktop app. Download the AppImage from the newest versioned release." \
+              --latest=false
+          fi
+
+          {
+            echo "## OmaBB ${VERSION}"
+            echo
+            echo "- Release: ${VERSION_TAG}"
+            echo "- Update feed: https://github.com/${GITHUB_REPOSITORY}/releases/download/${LATEST_TAG}/"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,41 @@
+{
+  "name": "bb-plugin-omarchy-theme",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A bb theme that follows the current Omarchy theme.",
+  "license": "MIT",
+  "engines": {
+    "bb": ">=0.47",
+    "bbPluginSdk": ">=0.6.79"
+  },
+  "bb": {
+    "name": "Omarchy Theme",
+    "description": "Adds an Omarchy theme to Settings → Appearance that follows your current Omarchy theme as you switch it.",
+    "branding": {
+      "icon": "Palette"
+    },
+    "server": "./server.ts",
+    "skills": [],
+    "themes": [
+      {
+        "id": "omarchy",
+        "name": "Omarchy",
+        "description": "Follows the current Omarchy theme.",
+        "css": "./themes/omarchy.css"
+      }
+    ]
+  },
+  "keywords": [
+    "bb-plugin",
+    "omarchy"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.6.79",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

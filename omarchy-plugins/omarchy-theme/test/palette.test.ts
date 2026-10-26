@@ -57,10 +57,7 @@ describe("renderThemeCss", () => {
     assert.equal(tokens.get("--destructive"), "#f7768e");
     assert.equal(tokens.get("--success"), "#9ece6a");
     assert.equal(tokens.get("--attention"), "#eb927b");
-    assert.match(
-      css,
-      /Generated from the Omarchy theme "Tokyo Night" \(dark\)/,
-    );
+    assert.equal(tokens.get("--omarchy-theme-name"), '"Tokyo Night"');
   });
 
   it("follows Omarchy's terminal slots for the ANSI palette", () => {
@@ -68,11 +65,11 @@ describe("renderThemeCss", () => {
       renderThemeCss(parseColorsToml(fixture("tokyo-night")), "Tokyo Night")
         .css,
     );
-    assert.equal(tokens.get("--ansi-0"), "#1a1b26"); // background
-    assert.equal(tokens.get("--ansi-7"), "#a9b1d6"); // foreground
-    assert.equal(tokens.get("--ansi-8"), "#414868"); // muted
-    assert.equal(tokens.get("--ansi-11"), "#ff9e64"); // bright_yellow
-    assert.equal(tokens.get("--ansi-15"), "#c0caf5"); // bright_foreground
+    assert.equal(tokens.get("--ansi-0"), "#1a1b26");
+    assert.equal(tokens.get("--ansi-7"), "#a9b1d6");
+    assert.equal(tokens.get("--ansi-8"), "#414868");
+    assert.equal(tokens.get("--ansi-11"), "#ff9e64");
+    assert.equal(tokens.get("--ansi-15"), "#c0caf5");
     assert.equal(tokens.get("--ansi-bg-fg-0"), "#ffffff");
   });
 
@@ -133,11 +130,31 @@ describe("renderThemeCss", () => {
     assert.equal(tokens.get("--primary"), "#eeeeee");
   });
 
-  it("keeps the theme name from closing the CSS comment", () => {
+  it("quotes the theme name so it can't break out of the stylesheet", () => {
     const { css } = renderThemeCss(
       { background: "#101010", foreground: "#eeeeee" },
-      "evil */ body { display: none } /*",
+      'evil"; } body { display: none } </style>\n\\',
     );
-    assert.equal(css.match(/\*\//g)?.length, 2);
+    assert.equal(
+      declarations(css).get("--omarchy-theme-name"),
+      String.raw`"evil\"; } body { display: none } \3C /style> \\"`,
+    );
+    assert.ok(css.trimEnd().endsWith("}"));
+  });
+
+  it("keeps text on destructive and attention fills readable", () => {
+    for (const name of ["tokyo-night", "catppuccin-latte"]) {
+      const tokens = declarations(
+        renderThemeCss(parseColorsToml(fixture(name)), name).css,
+      );
+      for (const fill of ["destructive", "attention"]) {
+        const background = tokens.get(`--${fill}`) ?? "";
+        const text = tokens.get(`--${fill}-foreground`) ?? "";
+        assert.ok(
+          contrastRatio(background, text) >= 4.5,
+          `${name}: ${text} on ${background}`,
+        );
+      }
+    }
   });
 });

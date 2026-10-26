@@ -78,6 +78,7 @@ import {
   startBbAppProcess,
 } from "./bb-process.js";
 import { openExistingServerDialog } from "./existing-server-dialog.js";
+import { stripInheritedThreadEnv } from "./inherited-thread-env.js";
 import {
   readForeignRuntimeDetails,
   stopForeignRuntime,
@@ -2828,6 +2829,9 @@ async function initializeRuntime(args: InitializeRuntimeArgs): Promise<void> {
 }
 
 async function runDesktopApp(): Promise<void> {
+  if (app.isPackaged) {
+    stripInheritedThreadEnv(process.env);
+  }
   ensurePackagedUserShellPath({
     env: process.env,
     isPackaged: app.isPackaged,

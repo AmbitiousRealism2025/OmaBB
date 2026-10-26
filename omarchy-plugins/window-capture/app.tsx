@@ -22,8 +22,10 @@ const BUTTON_CLASS =
 const PRIMARY_BUTTON_CLASS =
   "inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm text-primary-foreground hover:opacity-90 disabled:pointer-events-none disabled:opacity-50";
 
-function isDesktopWindow(): boolean {
-  return "bbDesktop" in window;
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+function isDesktopWindowOnServerMachine(): boolean {
+  return "bbDesktop" in window && LOOPBACK_HOSTS.has(window.location.hostname);
 }
 
 function toAttachment(
@@ -52,7 +54,7 @@ function CaptureReceiver() {
   const [token] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
-    if (!isDesktopWindow()) return;
+    if (!isDesktopWindowOnServerMachine()) return;
     const claim = () => localStorage.setItem(FOCUS_KEY, token);
     const release = () => {
       if (localStorage.getItem(FOCUS_KEY) === token) {
@@ -72,7 +74,7 @@ function CaptureReceiver() {
   }, [token]);
 
   useRealtime(CAPTURE_CHANNEL, (payload) => {
-    if (!isDesktopWindow()) return;
+    if (!isDesktopWindowOnServerMachine()) return;
     const owner = localStorage.getItem(FOCUS_KEY);
     if (owner !== null && owner !== token) return;
     const capture = parseCaptureSignal(payload);
@@ -81,12 +83,17 @@ function CaptureReceiver() {
       toAttachment("localImage", capture.image),
       ...(capture.tree === null ? [] : [toAttachment("localFile", capture.tree)]),
     ];
-    composer.replace((current) => ({
-      text: current.text,
-      mentions: current.mentions,
-      attachments: [...current.attachments, ...added],
-    }));
-    void rpc.call("ack", { id: capture.id }).catch(() => undefined);
+    void rpc
+      .call("claim", { id: capture.id })
+      .then(({ granted }) => {
+        if (!granted) return;
+        composer.replace((current) => ({
+          text: current.text,
+          mentions: current.mentions,
+          attachments: [...current.attachments, ...added],
+        }));
+      })
+      .catch(() => undefined);
   });
 
   return null;

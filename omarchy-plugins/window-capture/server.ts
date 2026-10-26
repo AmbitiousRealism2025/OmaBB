@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import type { BbPluginApi, PluginCliResult } from "@get-bb/plugin-sdk";
 import {
   readAccessibilityTree,
   renderAccessibilityDocument,
@@ -21,6 +21,7 @@ import {
   resolveHyprlandConfig,
   type BindChange,
 } from "./bind.ts";
+import { createClaims } from "./claims.ts";
 import { rpcContract } from "./contract.ts";
 import {
   attachmentName,
@@ -33,7 +34,7 @@ import {
 } from "./hyprland.ts";
 import { CAPTURE_CHANNEL, type CaptureAttachment, type CaptureSignal } from "./signal.ts";
 
-const ACK_TIMEOUT_MS = 2_000;
+const CLAIM_TIMEOUT_MS = 2_000;
 const CAPTURE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type CaptureOutcome =
@@ -94,7 +95,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
 
-  const pendingAcks = new Map<string, () => void>();
+  const claims = createClaims(CLAIM_TIMEOUT_MS);
   let capturing = false;
   let primaryHostId: Promise<string | null> | null = null;
 
@@ -118,19 +119,6 @@ export default async function plugin(bb: BbPluginApi) {
     return primaryHostId;
   };
 
-  const waitForAck = (id: string) =>
-    new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => {
-        pendingAcks.delete(id);
-        resolve(false);
-      }, ACK_TIMEOUT_MS);
-      pendingAcks.set(id, () => {
-        clearTimeout(timer);
-        pendingAcks.delete(id);
-        resolve(true);
-      });
-    });
-
   async function capture(): Promise<CaptureOutcome> {
     if (capturing) return { status: "busy" };
     capturing = true;
@@ -140,7 +128,8 @@ export default async function plugin(bb: BbPluginApi) {
       const now = new Date();
       const directory = capturesDir();
       await mkdir(directory, { recursive: true });
-      const stem = captureFileStem(window, now);
+      const id = randomUUID();
+      const stem = `${captureFileStem(window, now)}-${id.slice(0, 8)}`;
       const imagePath = join(directory, `${stem}.png`);
       const { accessibilityTree } = await settings.get();
       const [, tree] = await Promise.all([
@@ -169,11 +158,10 @@ export default async function plugin(bb: BbPluginApi) {
           hostId: owner,
         };
       }
-      const id = randomUUID();
-      const acknowledged = waitForAck(id);
+      const claim = claims.wait(id);
       const signal: CaptureSignal = { id, label, image, tree: treeAttachment };
       bb.realtime.publish(CAPTURE_CHANNEL, signal);
-      const claimed = await acknowledged;
+      const claimed = await claim;
       const result = {
         label,
         imagePath,
@@ -234,67 +222,116 @@ export default async function plugin(bb: BbPluginApi) {
     return { action: "install", shortcut: parsed.shortcut, command };
   }
 
-  bb.rpc.register(rpcContract, {
-    async status() {
-      try {
-        const { location, marker: blockMarker, command } = await bindContext();
-        const content = await readFile(location.path, "utf8");
-        const installed = installedShortcut(content, location.format, blockMarker);
-        return {
-          problem: null,
-          configPath: location.path,
-          installed:
-            installed === null
-              ? null
-              : { shortcut: installed.shortcut, current: installed.command === command },
-          defaultShortcut: DEFAULT_SHORTCUT,
-        };
-      } catch (error) {
-        return {
-          problem: message(error),
-          configPath: null,
-          installed: null,
-          defaultShortcut: DEFAULT_SHORTCUT,
-        };
-      }
-    },
-    async preview(input) {
-      const { env, location, marker: blockMarker, command } = await bindContext();
-      const change = toChange(input, command);
-      const before = await readFile(location.path, "utf8");
-      const plan = planEdit(before, location.format, blockMarker, change);
-      const conflicts =
-        change.action === "install"
-          ? await findConflicts(change.shortcut, command, env)
-          : [];
+  type ChangeInput = { action: "install"; shortcut: string } | { action: "remove" };
+
+  async function bindStatus() {
+    try {
+      const { location, marker: blockMarker, command } = await bindContext();
+      const content = await readFile(location.path, "utf8");
+      const installed = installedShortcut(content, location.format, blockMarker);
       return {
+        problem: null,
         configPath: location.path,
-        removed: plan.removed,
-        added: plan.added,
-        conflicts,
-        proposalId: proposalId(location.path, before, plan.after),
+        installed:
+          installed === null
+            ? null
+            : { shortcut: installed.shortcut, current: installed.command === command },
+        defaultShortcut: DEFAULT_SHORTCUT,
       };
-    },
-    async apply(input) {
-      const { env, location, marker: blockMarker, command } = await bindContext();
-      const change = toChange(input, command);
-      const { backupPath } = await applyEdit(
-        location,
-        blockMarker,
-        change,
-        input.proposalId,
-        env,
-      );
-      bb.log.info(
-        `${change.action === "install" ? `installed ${formatShortcut(change.shortcut)}` : "removed the capture shortcut"} in ${location.path}; backup at ${backupPath}`,
-      );
-      return { configPath: location.path, backupPath };
-    },
-    ack({ id }) {
-      const resolve = pendingAcks.get(id);
-      resolve?.();
-      return { ok: resolve !== undefined };
-    },
+    } catch (error) {
+      return {
+        problem: message(error),
+        configPath: null,
+        installed: null,
+        defaultShortcut: DEFAULT_SHORTCUT,
+      };
+    }
+  }
+
+  async function bindPreview(input: ChangeInput) {
+    const { env, location, marker: blockMarker, command } = await bindContext();
+    const change = toChange(input, command);
+    const before = await readFile(location.path, "utf8");
+    const plan = planEdit(before, location.format, blockMarker, change);
+    const conflicts =
+      change.action === "install" ? await findConflicts(change.shortcut, command, env) : [];
+    return {
+      configPath: location.path,
+      removed: plan.removed,
+      added: plan.added,
+      conflicts,
+      proposalId: proposalId(location.path, before, plan.after),
+    };
+  }
+
+  async function bindApply(input: ChangeInput & { proposalId: string }) {
+    const { env, location, marker: blockMarker, command } = await bindContext();
+    const change = toChange(input, command);
+    const { backupPath } = await applyEdit(
+      location,
+      blockMarker,
+      change,
+      input.proposalId,
+      env,
+    );
+    bb.log.info(
+      `${change.action === "install" ? `installed ${formatShortcut(change.shortcut)}` : "removed the capture shortcut"} in ${location.path}; backup at ${backupPath}`,
+    );
+    return { configPath: location.path, backupPath };
+  }
+
+  async function shortcutCommand(argv: string[]): Promise<PluginCliResult> {
+    const [action = "status", ...rest] = argv;
+    const confirmed = rest.includes("--yes");
+    const words = rest.filter((word) => word !== "--yes");
+    if (action === "status") {
+      const status = await bindStatus();
+      if (status.problem !== null) return { exitCode: 1, stderr: `${status.problem}\n` };
+      const state =
+        status.installed === null
+          ? "No capture shortcut is installed."
+          : status.installed.current
+            ? `Installed: ${status.installed.shortcut}.`
+            : `Installed: ${status.installed.shortcut}, but it points at another bb server address. Install it again to fix it.`;
+      return { exitCode: 0, stdout: `${state}\nConfig: ${status.configPath}\n` };
+    }
+    if (action !== "install" && action !== "remove") {
+      return {
+        exitCode: 64,
+        stderr: `Unknown shortcut action "${action}". Use status, install or remove.\n`,
+      };
+    }
+    const input: ChangeInput =
+      action === "install"
+        ? { action, shortcut: words.join(" ") || DEFAULT_SHORTCUT }
+        : { action };
+    try {
+      const plan = await bindPreview(input);
+      const diff = [
+        ...plan.removed.map((line) => `- ${line}`),
+        ...plan.added.map((line) => `+ ${line}`),
+      ];
+      const lines = [`${plan.configPath}:`, ...(diff.length > 0 ? diff : ["(no change)"])];
+      if (plan.conflicts.length > 0) {
+        lines.push(`Those keys are already bound to: ${plan.conflicts.join("; ")}.`);
+      }
+      if (!confirmed) {
+        lines.push("Run the same command with --yes to save this and reload Hyprland.");
+        return { exitCode: 0, stdout: `${lines.join("\n")}\n` };
+      }
+      const result = await bindApply({ ...input, proposalId: plan.proposalId });
+      lines.push(`Saved and reloaded Hyprland. Backup: ${result.backupPath}`);
+      return { exitCode: 0, stdout: `${lines.join("\n")}\n` };
+    } catch (error) {
+      return { exitCode: 1, stderr: `${message(error)}\n` };
+    }
+  }
+
+  bb.rpc.register(rpcContract, {
+    status: () => bindStatus(),
+    preview: (input) => bindPreview(input),
+    apply: (input) => bindApply(input),
+    claim: ({ id }) => ({ granted: claims.grant(id) }),
   });
 
   bb.http.route("POST", "/capture", async () => Response.json(await capture()));
@@ -305,11 +342,23 @@ export default async function plugin(bb: BbPluginApi) {
     commands: [
       {
         name: "capture-window",
-        summary: "Capture the focused window and attach it to the current draft",
+        summary: "Capture the focused window and attach it to the draft on screen",
         usage: "bb capture-window",
       },
+      {
+        name: "shortcut",
+        summary: "Show, install or remove the Hyprland capture shortcut",
+        usage: "bb capture-window shortcut [status | install [KEYS] [--yes] | remove [--yes]]",
+      },
     ],
-    async run() {
+    async run(argv) {
+      if (argv[0] === "shortcut") return shortcutCommand(argv.slice(1));
+      if (argv.length > 0) {
+        return {
+          exitCode: 64,
+          stderr: `Unknown argument "${argv[0]}". Use bb capture-window or bb capture-window shortcut.\n`,
+        };
+      }
       const outcome = await capture();
       const text = describeOutcome(outcome);
       return outcome.status === "attached" || outcome.status === "unclaimed"

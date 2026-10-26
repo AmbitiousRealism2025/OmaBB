@@ -32,9 +32,9 @@ export const rpcContract = {
     input: z.intersection(changeSchema, z.object({ proposalId: z.string().min(1) })),
     output: z.object({ configPath: z.string(), backupPath: z.string() }),
   },
-  ack: {
+  claim: {
     input: z.object({ id: z.string().min(1) }).strict(),
-    output: z.object({ ok: z.boolean() }),
+    output: z.object({ granted: z.boolean() }),
   },
 } satisfies PluginRpcContract;
 

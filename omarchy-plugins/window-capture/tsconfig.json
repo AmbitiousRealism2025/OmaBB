@@ -16,6 +16,7 @@
     "app.tsx",
     "accessibility.ts",
     "bind.ts",
+    "claims.ts",
     "contract.ts",
     "hyprland.ts",
     "signal.ts",

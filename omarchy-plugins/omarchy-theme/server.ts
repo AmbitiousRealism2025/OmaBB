@@ -69,6 +69,28 @@ export function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+export interface PaletteTarget {
+  readCss(): Promise<string | null>;
+  writeCss(css: string): Promise<void>;
+  refreshIfActive(): Promise<void>;
+}
+
+export type PaletteApplyResult = "unchanged" | "written" | "refreshed";
+
+export function createPaletteApplier(
+  target: PaletteTarget,
+): (css: string) => Promise<PaletteApplyResult> {
+  let appliedCss: string | null = null;
+  return async (css) => {
+    if (css === appliedCss) return "unchanged";
+    const written = (await target.readCss()) !== css;
+    if (written) await target.writeCss(css);
+    await target.refreshIfActive();
+    appliedCss = css;
+    return written ? "written" : "refreshed";
+  };
+}
+
 export default async function plugin(bb: BbPluginApi) {
   const cssPath = join(findPluginRoot(), "themes", `${THEME_ID}.css`);
   const selectionId = `plugin:${bb.pluginId}:${THEME_ID}`;
@@ -80,6 +102,19 @@ export default async function plugin(bb: BbPluginApi) {
     lastProblem = message;
     bb.log.warn(message);
   }
+
+  const applyPalette = createPaletteApplier({
+    readCss: () => readOptional(cssPath),
+    writeCss: (css) => writeFile(cssPath, css),
+    async refreshIfActive() {
+      const appearance = await bb.sdk.theme.get();
+      if (appearance.themeId !== selectionId) return;
+      await bb.sdk.theme.set({
+        themeId: selectionId,
+        faviconColor: appearance.faviconColor,
+      });
+    },
+  });
 
   async function sync(): Promise<void> {
     const colorsToml = await readOptional(
@@ -106,16 +141,8 @@ export default async function plugin(bb: BbPluginApi) {
     }
     lastProblem = null;
 
-    if ((await readOptional(cssPath)) === css) return;
-    await writeFile(cssPath, css);
-    bb.log.info(`Updated the Omarchy palette from "${themeName}"`);
-
-    const appearance = await bb.sdk.theme.get();
-    if (appearance.themeId === selectionId) {
-      await bb.sdk.theme.set({
-        themeId: selectionId,
-        faviconColor: appearance.faviconColor,
-      });
+    if ((await applyPalette(css)) === "written") {
+      bb.log.info(`Updated the Omarchy palette from "${themeName}"`);
     }
   }
 

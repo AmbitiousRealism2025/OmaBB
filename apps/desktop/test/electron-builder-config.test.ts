@@ -574,6 +574,7 @@ describe("electron-builder signing config", () => {
     expect(config.artifactName).toBe("omabb-nightly-${version}-${arch}.${ext}");
     expect(config.linux.icon).toBe("assets/icon-nightly.png");
     expect(config.linux.executableName).toBe("omabb-nightly");
+    expect(nightlyRelease.linuxDesktopId).toBe(config.linux.executableName);
     expect(config.mac.icon).toBe("assets/icon-nightly.icns");
     await expect(
       access(resolve(desktopPackageRoot, config.mac.icon)),

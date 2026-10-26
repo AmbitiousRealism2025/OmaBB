@@ -29,7 +29,18 @@ export const rpcContract = {
     }),
   },
   apply: {
-    input: z.intersection(changeSchema, z.object({ proposalId: z.string().min(1) })),
+    input: z.discriminatedUnion("action", [
+      z
+        .object({
+          action: z.literal("install"),
+          shortcut: z.string().min(1),
+          proposalId: z.string().min(1),
+        })
+        .strict(),
+      z
+        .object({ action: z.literal("remove"), proposalId: z.string().min(1) })
+        .strict(),
+    ]),
     output: z.object({ configPath: z.string(), backupPath: z.string() }),
   },
   claim: {

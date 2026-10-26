@@ -72,10 +72,12 @@ describe("atspi_tree.py", () => {
     "import gi; gi.require_version('Atspi', '2.0')",
   ]);
 
-  it("compiles", { skip: python.status !== 0 && "needs /usr/bin/python3 with PyGObject" }, () => {
-    const result = spawnSync("/usr/bin/python3", ["-I", "-m", "py_compile", HELPER_PATH], {
-      encoding: "utf8",
-    });
+  it("parses", { skip: python.status !== 0 && "needs /usr/bin/python3 with PyGObject" }, () => {
+    const result = spawnSync(
+      "/usr/bin/python3",
+      ["-I", "-c", "import ast, sys; ast.parse(open(sys.argv[1]).read())", HELPER_PATH],
+      { encoding: "utf8" },
+    );
     assert.equal(result.status, 0, result.stderr);
   });
 });

@@ -205,6 +205,15 @@ function resolveElectronBuilderConfig(baseConfig, env, electronBuilderArgs) {
       name: releaseConfig.windowsInstallName,
     };
   }
+  if (electronBuilderArgs.includes("--linux")) {
+    // Electron takes the Wayland app_id / WM_CLASS from desktopName, and
+    // electron-builder writes the same value as StartupWMClass, so the window
+    // matches its .desktop entry instead of reporting "bb-desktop".
+    config.extraMetadata = {
+      ...config.extraMetadata,
+      desktopName: `${releaseConfig.linuxExecutableName}.desktop`,
+    };
+  }
   config.appId = releaseConfig.appId;
   config.artifactName = releaseConfig.artifactName;
   config.productName = releaseConfig.applicationName;

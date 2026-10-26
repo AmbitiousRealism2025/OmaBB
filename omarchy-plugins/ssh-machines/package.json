@@ -1,0 +1,39 @@
+{
+  "name": "bb-plugin-ssh-machines",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Add a box you can reach over SSH as a bb machine.",
+  "license": "MIT",
+  "engines": {
+    "bb": ">=0.47",
+    "bbPluginSdk": ">=0.6.79"
+  },
+  "bb": {
+    "name": "SSH Machines [Early access]",
+    "description": "Add any Linux box or Mac you can reach with ssh as a bb machine. bb installs and enrolls it for you, and uninstalls it when you remove the machine.",
+    "branding": {
+      "icon": "Server"
+    },
+    "server": "./server.ts",
+    "app": "./app.tsx",
+    "skills": []
+  },
+  "keywords": [
+    "bb-plugin",
+    "ssh",
+    "machines"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.6.79",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -93,7 +93,7 @@ describe("bb command on PATH", () => {
     "links the launcher into a PATH folder and removes it again",
     async () => {
       const fixture = createUnixFixture();
-      const link = join(fixture.localBin, "bb");
+      const link = join(fixture.localBin, "omabb");
 
       await expect(fixture.service.getStatus()).resolves.toEqual(NOT_INSTALLED);
       await expect(fixture.service.install()).resolves.toEqual({
@@ -116,7 +116,7 @@ describe("bb command on PATH", () => {
 
     await expect(fixture.service.install()).resolves.toEqual({
       ...NOT_INSTALLED,
-      installedPath: join(fixture.localBin, "bb"),
+      installedPath: join(fixture.localBin, "omabb"),
       onPath: false,
     });
   });
@@ -128,7 +128,7 @@ describe("bb command on PATH", () => {
         join(home, ".local", "bin"),
       ],
     });
-    const foreign = join(fixture.home, "tools", "bb");
+    const foreign = join(fixture.home, "tools", "omabb");
     writeExecutable(foreign, "#!/bin/sh\necho babashka\n");
 
     await expect(fixture.service.getStatus()).resolves.toEqual({
@@ -142,7 +142,7 @@ describe("bb command on PATH", () => {
       },
       status: 409,
     });
-    expect(existsSync(join(fixture.localBin, "bb"))).toBe(false);
+    expect(existsSync(join(fixture.localBin, "omabb"))).toBe(false);
     expect(readFileSync(foreign, "utf8")).toBe("#!/bin/sh\necho babashka\n");
   });
 
@@ -156,7 +156,7 @@ describe("bb command on PATH", () => {
       join(packageRoot, "package.json"),
       JSON.stringify({ name: "bb-app" }),
     );
-    const npmBin = join(fixture.home, "npm", "bin", "bb");
+    const npmBin = join(fixture.home, "npm", "bin", "omabb");
     mkdirSync(dirname(npmBin));
     symlinkSync(join(packageRoot, "dist", "bb.js"), npmBin);
 
@@ -175,7 +175,7 @@ describe("bb command on PATH", () => {
     "recognises the command a bb machine install added and leaves it",
     async () => {
       const fixture = createUnixFixture();
-      const machineShim = join(fixture.localBin, "bb");
+      const machineShim = join(fixture.localBin, "omabb");
       writeExecutable(
         machineShim,
         `#!/bin/sh\nprintf '%s\\n' '${MACHINE_CLI_SHIM_MARKER}' >&2\nexit 1\n`,
@@ -209,12 +209,20 @@ describe("bb command on PATH", () => {
       ],
     });
     writeExecutable(
-      join(fixture.home, ".npm", "_npx", "abc", "node_modules", ".bin", "bb"),
+      join(
+        fixture.home,
+        ".npm",
+        "_npx",
+        "abc",
+        "node_modules",
+        ".bin",
+        "omabb",
+      ),
       "#!/bin/sh\n",
     );
 
     await expect(fixture.service.install()).resolves.toMatchObject({
-      installedPath: join(fixture.localBin, "bb"),
+      installedPath: join(fixture.localBin, "omabb"),
       onPath: true,
     });
   });
@@ -225,7 +233,7 @@ describe("bb command on PATH", () => {
       const fixture = createUnixFixture();
       const otherLauncher = join(fixture.home, "other-data", "bin", "bb");
       writeExecutable(otherLauncher, `#!/bin/sh\n# ${CLI_LAUNCHER_MARKER}\n`);
-      const link = join(fixture.localBin, "bb");
+      const link = join(fixture.localBin, "omabb");
       mkdirSync(fixture.localBin, { recursive: true });
       symlinkSync(otherLauncher, link);
 
@@ -245,7 +253,7 @@ describe("bb command on PATH", () => {
         message: `The bb command launcher at ${fixture.launcherPath} is missing. Restart bb, then try again.`,
       },
     });
-    expect(existsSync(join(fixture.localBin, "bb"))).toBe(false);
+    expect(existsSync(join(fixture.localBin, "omabb"))).toBe(false);
   });
 
   it("is unavailable when bb runs without a launcher, such as a source checkout", async () => {

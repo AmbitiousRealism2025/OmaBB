@@ -78,10 +78,12 @@ interface ResolvePortFromEnvArgs {
   name: string;
 }
 
-const BB_PROD_DATA_DIR_NAME = ".bb";
+// OmaBB: its own data dir and ports so it runs beside stock bb (~/.bb on
+// 38886/38887). The ports sit outside every dev port range below.
+const BB_PROD_DATA_DIR_NAME = ".omabb";
 const BB_DEV_DATA_ROOT_DIR = ".bb-dev";
-export const BB_PROD_SERVER_PORT = 38886;
-export const BB_PROD_HOST_DAEMON_PORT = 38887;
+export const BB_PROD_SERVER_PORT = 52886;
+export const BB_PROD_HOST_DAEMON_PORT = 52887;
 export const BB_LOOPBACK_HOST = "127.0.0.1";
 const BB_SQLITE_DATABASE_FILE_NAME = "bb.db";
 

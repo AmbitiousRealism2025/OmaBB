@@ -8,7 +8,7 @@ const desktopPackageRoot = process.cwd();
 
 const printedConfigSchema = z
   .object({
-    extraMetadata: z.object({ name: z.string() }).optional(),
+    extraMetadata: z.object({ name: z.string().optional() }).optional(),
     nsis: z.object({ oneClick: z.boolean(), perMachine: z.boolean() }),
     win: z.object({
       icon: z.string(),
@@ -41,19 +41,19 @@ describe("electron-builder Windows config", () => {
     expect(config.win.target).toEqual([{ arch: ["x64"], target: "nsis" }]);
     expect(config.win.icon).toBe("assets/icon.png");
     expect(config.nsis).toEqual({ oneClick: true, perMachine: false });
-    expect(config.extraMetadata).toEqual({ name: "bb" });
+    expect(config.extraMetadata).toEqual({ name: "omabb" });
   });
 
   it("keeps the nightly install apart from the stable one", async () => {
     const config = await printConfig(["--win", "--x64"], "nightly");
 
     expect(config.win.icon).toBe("assets/icon-nightly.png");
-    expect(config.extraMetadata).toEqual({ name: "bb-nightly" });
+    expect(config.extraMetadata).toEqual({ name: "omabb-nightly" });
   });
 
   it("leaves the package name alone for other platforms", async () => {
     const config = await printConfig(["--linux", "--x64"], "latest");
 
-    expect(config.extraMetadata).toBeUndefined();
+    expect(config.extraMetadata?.name).toBeUndefined();
   });
 });

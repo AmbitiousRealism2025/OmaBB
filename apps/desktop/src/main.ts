@@ -32,6 +32,7 @@ import {
   APP_SURFACE_ENV_NAME,
 } from "@bb/config/app-surface";
 import { findMachineServiceFile } from "@bb/config/machine-service";
+import { resolveProdDataDir } from "@bb/config/runtime";
 import {
   DEFAULT_CONNECT_BASE_URL,
   deriveConnectBaseUrl,
@@ -661,7 +662,7 @@ const desktopLogger = createDesktopLogger({ logDir: formatLogDirectory() });
 function resolveDataDirFromEnv(args: ResolveDataDirFromEnvArgs): string {
   const rawDataDir = args.env.BB_DATA_DIR?.trim();
   if (rawDataDir === undefined || rawDataDir.length === 0) {
-    return join(args.homeDir, ".bb");
+    return resolveProdDataDir({ homeDir: args.homeDir });
   }
   if (rawDataDir === "~") {
     return args.homeDir;
@@ -2841,7 +2842,7 @@ async function runDesktopApp(): Promise<void> {
 
   const applicationName = app.isPackaged
     ? DESKTOP_RELEASE_INFO.applicationName
-    : "bb-dev";
+    : "omabb-dev";
   app.setName(applicationName);
   installAboutPanel(applicationName);
 

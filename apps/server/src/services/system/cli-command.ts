@@ -23,7 +23,8 @@ import { ApiError } from "../../errors.js";
 export const MACHINE_CLI_SHIM_MARKER =
   "No installed bb machine CLI is available.";
 const CLI_LAUNCHER_MAX_BYTES = 16_384;
-const CLI_COMMAND_NAME = "bb";
+// OmaBB: the shell command must not shadow stock bb's `bb` on PATH.
+const CLI_COMMAND_NAME = "omabb";
 const WINDOWS_USER_PATH_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 if ($env:BB_CLI_COMMAND_SET -eq '1') {

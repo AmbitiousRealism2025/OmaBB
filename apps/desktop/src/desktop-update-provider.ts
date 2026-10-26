@@ -9,6 +9,8 @@ interface DesktopReleaseInfo {
   applicationName: "OmaBB" | "OmaBB Nightly";
   channel: DesktopReleaseChannel;
   iconFileName: "icon.png" | "icon-nightly.png";
+  /** The .desktop file name and Wayland app id, matching linuxExecutableName. */
+  linuxDesktopId: "omabb" | "omabb-nightly";
   releaseTag: "desktop-latest" | "desktop-nightly";
   updateReleaseBaseUrl: string;
 }
@@ -23,6 +25,7 @@ export function createDesktopReleaseInfo(
     applicationName: nightly ? "OmaBB Nightly" : "OmaBB",
     channel,
     iconFileName: nightly ? "icon-nightly.png" : "icon.png",
+    linuxDesktopId: nightly ? "omabb-nightly" : "omabb",
     releaseTag,
     updateReleaseBaseUrl: `https://github.com/AmbitiousRealism2025/OmaBB/releases/download/${releaseTag}/`,
   };

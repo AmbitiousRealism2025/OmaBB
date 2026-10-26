@@ -1,5 +1,5 @@
 import { createDesktopLogger } from "./desktop-logger.js";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { attachServerUpdateControl } from "./server-update-control.js";
 import { registerServerChoiceIpc } from "./server-choice-ipc.js";
 import { randomUUID } from "node:crypto";
@@ -179,6 +179,11 @@ import {
   LINUX_FRAMELESS_WINDOW_ARGUMENT,
   LINUX_TRANSPARENT_WINDOW_ARGUMENT,
 } from "./desktop-linux-window-options.js";
+import { resolveHyprlandDisableFeatures } from "./desktop-hyprland-color-manager.js";
+import {
+  refreshDesktopDatabase,
+  syncAppImageDesktopEntry,
+} from "./desktop-linux-integration.js";
 import {
   createDesktopAboutDialogOptions,
   createDesktopAboutPanelOptions,
@@ -2829,6 +2834,34 @@ async function initializeRuntime(args: InitializeRuntimeArgs): Promise<void> {
   }
 }
 
+function readCommandLineSwitch(name: string): string | null {
+  return app.commandLine.hasSwitch(name)
+    ? app.commandLine.getSwitchValue(name)
+    : null;
+}
+
+// Must run before the app is ready: Chromium reads features at GPU start.
+function applyHyprlandColorManagerWorkaround(): void {
+  const disableFeatures = resolveHyprlandDisableFeatures({
+    env: process.env,
+    platform: process.platform,
+    ozonePlatform: readCommandLineSwitch("ozone-platform"),
+    ozonePlatformHint: readCommandLineSwitch("ozone-platform-hint"),
+    enableFeatures: readCommandLineSwitch("enable-features"),
+    disableFeatures: readCommandLineSwitch("disable-features"),
+    readHyprctlVersionJson: () =>
+      execFileSync("hyprctl", ["version", "-j"], {
+        encoding: "utf8",
+        maxBuffer: 64 * 1024,
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 1000,
+      }),
+  });
+  if (disableFeatures !== null) {
+    app.commandLine.appendSwitch("disable-features", disableFeatures);
+  }
+}
+
 async function runDesktopApp(): Promise<void> {
   if (app.isPackaged) {
     stripInheritedThreadEnv(process.env);
@@ -2839,6 +2872,8 @@ async function runDesktopApp(): Promise<void> {
     logger: desktopLogger,
     platform: process.platform,
   });
+
+  applyHyprlandColorManagerWorkaround();
 
   const applicationName = app.isPackaged
     ? DESKTOP_RELEASE_INFO.applicationName
@@ -2916,6 +2951,22 @@ async function runDesktopApp(): Promise<void> {
     packagedIconFileName: DESKTOP_RELEASE_INFO.iconFileName,
     paths,
   });
+  if (paths.isPackaged) {
+    try {
+      syncAppImageDesktopEntry({
+        applicationName: DESKTOP_RELEASE_INFO.applicationName,
+        desktopId: DESKTOP_RELEASE_INFO.linuxDesktopId,
+        env: process.env,
+        iconSourcePath: iconPath,
+        onEntryChanged: refreshDesktopDatabase,
+        platform: process.platform,
+      });
+    } catch (error) {
+      desktopLogger.warn(
+        `[desktop] could not update the launcher entry: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
   const bridgePath = resolveDesktopBridgePath({ paths });
   const resolvedLogViewerPreloadPath = join(
     paths.appPath,

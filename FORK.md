@@ -36,12 +36,17 @@ Keep these in mind when merging upstream; each is a small, marked edit.
 
 - `packages/config/src/runtime.ts`: data dir name and the two ports.
 - `apps/desktop/scripts/desktop-release-channel.mjs` (+ `.d.mts`): app id, app name, executable and artifact names, update URL used at build time.
-- `apps/desktop/src/desktop-update-provider.ts`: app name and update URL used at run time.
+- `apps/desktop/src/desktop-update-provider.ts`: app name, launcher entry id (`linuxDesktopId`) and update URL used at run time.
 - `apps/desktop/electron-builder.config.json`: the same identity, overridden at build time by the release-channel module.
 - `apps/desktop/src/main.ts`: dev app name, data dir fallback, inherited thread env.
 - `apps/desktop/src/types.ts`: default server URL, read from the shared port.
 - `apps/server/src/services/system/cli-command.ts`: shell command name.
 - `plugins/automations/src/server.ts`: fallback server URL.
+
+## OmaBB-only desktop behaviour
+
+- On Hyprland 0.48–0.50 stock releases under Wayland, startup turns off Chromium's `WaylandWpColorManagerV1` feature, which those releases break (`apps/desktop/src/desktop-hyprland-color-manager.ts`). Also suitable for upstream.
+- A packaged AppImage writes `~/.local/share/applications/omabb.desktop` and its icon on each launch and keeps `Exec` pointing at the running AppImage (`apps/desktop/src/desktop-linux-integration.ts`). Entries without the `X-OmaBB-Managed=true` line belong to the user and are left alone.
 
 ## Syncing with upstream
 

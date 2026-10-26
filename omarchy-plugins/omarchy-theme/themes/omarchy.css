@@ -1,0 +1,56 @@
+:root,
+.light,
+.dark {
+  --canvas: #1a1b26;
+  --ink: #a9b1d6;
+  --primary: #7aa2f7;
+  --primary-foreground: #1a1b26;
+  --destructive-foreground: #1a1b26;
+  --attention-foreground: #1a1b26;
+  --muted-foreground: color-mix(in oklch, var(--ink) 70%, var(--canvas));
+  --subtle-foreground: color-mix(in oklch, var(--ink) 58%, var(--canvas));
+  --readback-foreground: color-mix(in oklch, var(--ink) 64%, var(--canvas));
+  --destructive: #f7768e;
+  --destructive-text: #ff7a93;
+  --warning: #e0af68;
+  --warning-text: #ff9e64;
+  --attention: #eb927b;
+  --success: #9ece6a;
+  --diff-added: #9ece6a;
+  --diff-removed: #f7768e;
+  --pr-merged: #ad8ee6;
+  --file-accent: #449dab;
+  --ansi-0: #1a1b26;
+  --ansi-bg-fg-0: #ffffff;
+  --ansi-1: #f7768e;
+  --ansi-bg-fg-1: #000000;
+  --ansi-2: #9ece6a;
+  --ansi-bg-fg-2: #000000;
+  --ansi-3: #e0af68;
+  --ansi-bg-fg-3: #000000;
+  --ansi-4: #7aa2f7;
+  --ansi-bg-fg-4: #000000;
+  --ansi-5: #ad8ee6;
+  --ansi-bg-fg-5: #000000;
+  --ansi-6: #449dab;
+  --ansi-bg-fg-6: #000000;
+  --ansi-7: #a9b1d6;
+  --ansi-bg-fg-7: #000000;
+  --ansi-8: #414868;
+  --ansi-bg-fg-8: #ffffff;
+  --ansi-9: #ff7a93;
+  --ansi-bg-fg-9: #000000;
+  --ansi-10: #b9f27c;
+  --ansi-bg-fg-10: #000000;
+  --ansi-11: #ff9e64;
+  --ansi-bg-fg-11: #000000;
+  --ansi-12: #7da6ff;
+  --ansi-bg-fg-12: #000000;
+  --ansi-13: #bb9af7;
+  --ansi-bg-fg-13: #000000;
+  --ansi-14: #0db9d7;
+  --ansi-bg-fg-14: #000000;
+  --ansi-15: #c0caf5;
+  --ansi-bg-fg-15: #000000;
+  --omarchy-theme-name: "Tokyo Night";
+}

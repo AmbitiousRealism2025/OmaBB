@@ -1,0 +1,192 @@
+import { watch, type FSWatcher } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import {
+  IncompleteThemeError,
+  parseColorsToml,
+  renderThemeCss,
+} from "./palette.ts";
+
+const PACKAGE_NAME = "bb-plugin-omarchy-theme";
+const THEME_ID = "omarchy";
+const DEBOUNCE_MS = 250;
+const POLL_MS = 30_000;
+
+function findPluginRoot(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (;;) {
+    const manifest = join(dir, "package.json");
+    if (existsSync(manifest)) {
+      try {
+        const parsed: unknown = JSON.parse(readFileSync(manifest, "utf8"));
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          (parsed as { name?: unknown }).name === PACKAGE_NAME
+        ) {
+          return dir;
+        }
+      } catch {}
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      throw new Error(`could not find the ${PACKAGE_NAME} folder`);
+    }
+    dir = parent;
+  }
+}
+
+export function resolveOmarchyCurrentDir(env: NodeJS.ProcessEnv): string {
+  const stateHome = env.XDG_STATE_HOME?.trim();
+  const base =
+    stateHome && isAbsolute(stateHome)
+      ? stateHome
+      : join(homedir(), ".local", "state");
+  return join(base, "omarchy", "current");
+}
+
+async function readOptional(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+export function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", done, { once: true });
+  });
+}
+
+export interface PaletteTarget {
+  readCss(): Promise<string | null>;
+  writeCss(css: string): Promise<void>;
+  refreshIfActive(): Promise<void>;
+}
+
+export type PaletteApplyResult = "unchanged" | "written" | "refreshed";
+
+export function createPaletteApplier(
+  target: PaletteTarget,
+): (css: string) => Promise<PaletteApplyResult> {
+  let appliedCss: string | null = null;
+  return async (css) => {
+    if (css === appliedCss) return "unchanged";
+    const written = (await target.readCss()) !== css;
+    if (written) await target.writeCss(css);
+    await target.refreshIfActive();
+    appliedCss = css;
+    return written ? "written" : "refreshed";
+  };
+}
+
+export default async function plugin(bb: BbPluginApi) {
+  const cssPath = join(findPluginRoot(), "themes", `${THEME_ID}.css`);
+  const selectionId = `plugin:${bb.pluginId}:${THEME_ID}`;
+  const currentDir = resolveOmarchyCurrentDir(process.env);
+  let lastProblem: string | null = null;
+
+  function reportProblem(message: string): void {
+    if (message === lastProblem) return;
+    lastProblem = message;
+    bb.log.warn(message);
+  }
+
+  const applyPalette = createPaletteApplier({
+    readCss: () => readOptional(cssPath),
+    writeCss: (css) => writeFile(cssPath, css),
+    async refreshIfActive() {
+      const appearance = await bb.sdk.theme.get();
+      if (appearance.themeId !== selectionId) return;
+      await bb.sdk.theme.set({
+        themeId: selectionId,
+        faviconColor: appearance.faviconColor,
+      });
+    },
+  });
+
+  async function sync(): Promise<void> {
+    const colorsToml = await readOptional(
+      join(currentDir, "theme", "colors.toml"),
+    );
+    if (colorsToml === null) {
+      reportProblem(
+        `No Omarchy theme found at ${currentDir}/theme/colors.toml. This plugin needs Omarchy 4.0 or later.`,
+      );
+      return;
+    }
+    const themeName =
+      (await readOptional(join(currentDir, "theme.name")))?.trim() || "Omarchy";
+
+    let css: string;
+    try {
+      css = renderThemeCss(parseColorsToml(colorsToml), themeName).css;
+    } catch (error) {
+      if (error instanceof IncompleteThemeError) {
+        reportProblem(`Omarchy theme "${themeName}": ${error.message}`);
+        return;
+      }
+      throw error;
+    }
+    lastProblem = null;
+
+    if ((await applyPalette(css)) === "written") {
+      bb.log.info(`Updated the Omarchy palette from "${themeName}"`);
+    }
+  }
+
+  bb.background.service("follow-omarchy-theme", {
+    async start(signal) {
+      let pending: ReturnType<typeof setTimeout> | null = null;
+      let running = Promise.resolve();
+      const schedule = (): void => {
+        if (pending !== null) clearTimeout(pending);
+        pending = setTimeout(() => {
+          pending = null;
+          running = running
+            .then(sync)
+            .catch((error: unknown) =>
+              bb.log.error(
+                `Could not apply the Omarchy theme: ${error instanceof Error ? error.message : String(error)}`,
+              ),
+            );
+        }, DEBOUNCE_MS);
+      };
+
+      let watcher = null as FSWatcher | null;
+      const ensureWatcher = (): void => {
+        if (watcher !== null || !existsSync(currentDir)) return;
+        try {
+          watcher = watch(currentDir, schedule);
+          watcher.on("error", () => {
+            watcher?.close();
+            watcher = null;
+          });
+        } catch {
+          watcher = null;
+        }
+      };
+
+      schedule();
+      while (!signal.aborted) {
+        ensureWatcher();
+        await sleep(POLL_MS, signal);
+        if (!signal.aborted) schedule();
+      }
+      if (pending !== null) clearTimeout(pending);
+      watcher?.close();
+      await running;
+    },
+  });
+}

@@ -53,35 +53,45 @@ export function createDesktopAppUpdateService(args: {
     }
   };
   let lastResult: SystemAppUpdateStatus["lastResult"] = null;
-  const initialized = mutateManagedJsonFile({
-    path,
-    read: readState,
-    mutate: (state) => {
-      if (state.pending === null) return state;
-      const updated = state.pending.to.version === args.currentVersion;
-      return {
-        ...state,
-        pending: null,
-        lastResult: {
-          ...state.pending,
-          finishedAt: new Date().toISOString(),
-          message: updated
-            ? null
-            : `bb started ${args.currentVersion} instead of ${state.pending.to.version}.`,
-          outcome: updated ? ("updated" as const) : ("failed" as const),
-          phase: updated ? null : ("startup" as const),
-        },
-      };
-    },
-  }).then((state) => {
-    lastResult = state.lastResult;
-  });
-  void initialized.catch((error: unknown) => {
-    args.logger.warn({ error }, "Could not read desktop update state");
-  });
+  const desktopVersion = (): string => info?.version ?? args.currentVersion;
+  let reconciled: Promise<void> | null = null;
+  const reconcile = (version: string): Promise<void> => {
+    reconciled ??= mutateManagedJsonFile({
+      path,
+      read: readState,
+      mutate: (state) => {
+        if (state.pending === null) return state;
+        const updated = state.pending.to.version === version;
+        return {
+          ...state,
+          pending: null,
+          lastResult: {
+            ...state.pending,
+            finishedAt: new Date().toISOString(),
+            message: updated
+              ? null
+              : `bb started ${version} instead of ${state.pending.to.version}.`,
+            outcome: updated ? ("updated" as const) : ("failed" as const),
+            phase: updated ? null : ("startup" as const),
+          },
+        };
+      },
+    }).then(
+      (state) => {
+        lastResult = state.lastResult;
+      },
+      (error: unknown) => {
+        args.logger.warn({ error }, "Could not read desktop update state");
+      },
+    );
+    return reconciled;
+  };
   const unsubscribe = args.channel.subscribe((next) => {
     updaterUnavailable = next === null;
-    if (next !== null) info = next;
+    if (next !== null) {
+      info = next;
+      void reconcile(next.version).then(args.notifyChanged);
+    }
     args.notifyChanged();
   });
 
@@ -103,15 +113,15 @@ export function createDesktopAppUpdateService(args: {
   }: {
     forceRefresh: boolean;
   }): Promise<SystemAppUpdateStatus> => {
-    await initialized;
     await refresh(forceRefresh);
+    await reconcile(desktopVersion());
     const version = info?.pendingVersion ?? info?.latestVersion ?? null;
     return {
       ...(info?.supported === true
         ? { desktopUpdateSupported: true as const }
         : {}),
       support: { kind: "unsupported", reason: "desktop" },
-      current: { commit: null, version: args.currentVersion },
+      current: { commit: null, version: desktopVersion() },
       available:
         info?.updateAvailable === true && version !== null
           ? {
@@ -180,7 +190,7 @@ export function createDesktopAppUpdateService(args: {
     const result = {
       acknowledged: false,
       finishedAt: new Date().toISOString(),
-      from: { commit: null, version: args.currentVersion },
+      from: { commit: null, version: desktopVersion() },
       id: randomUUID(),
       logTail: [],
       message: null,
@@ -293,7 +303,8 @@ export function createDesktopAppUpdateService(args: {
       }
     },
     async acknowledgeResult({ id }) {
-      await initialized;
+      await refresh(false);
+      await reconcile(desktopVersion());
       const state = await mutateManagedJsonFile({
         path,
         read: readState,

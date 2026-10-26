@@ -111,6 +111,7 @@ describe("desktop-hosted server updates", () => {
     );
     service.dispose();
 
+    channel.push({ version: "1.1.0", updateAvailable: false });
     const restarted = create("1.1.0");
     const result = (await restarted.getStatus({ forceRefresh: false }))
       .lastResult;
@@ -124,6 +125,58 @@ describe("desktop-hosted server updates", () => {
       (await restarted.acknowledgeResult({ id: result.id })).lastResult
         ?.acknowledged,
     ).toBe(true);
+  });
+
+  it("checks a restart against the desktop's version when it differs from the server's", async () => {
+    const { channel, create, service: unused } = await fixture();
+    unused.dispose();
+    channel.info = {
+      ...channel.info,
+      version: "0.47.1",
+      latestVersion: "0.47.1-omabb.4",
+    };
+    const service = create("0.47.1");
+    await service.apply({ confirmInterruptingThreads: true });
+    channel.push({
+      updateDownloaded: true,
+      pendingVersion: "0.47.1-omabb.4",
+      downloadState: "downloaded",
+    });
+    await vi.waitFor(() => expect(channel.requests).toContain("install"), {
+      timeout: 3_000,
+    });
+    service.dispose();
+
+    channel.push({ version: "0.47.1-omabb.4", updateAvailable: false });
+    const status = await create("0.47.1").getStatus({ forceRefresh: false });
+    expect(status.current.version).toBe("0.47.1-omabb.4");
+    expect(status.lastResult).toMatchObject({
+      outcome: "updated",
+      message: null,
+      from: { version: "0.47.1" },
+      to: { version: "0.47.1-omabb.4" },
+    });
+  });
+
+  it("reports a restart that kept the old desktop version as failed", async () => {
+    const { channel, service, create } = await fixture();
+    await service.apply({ confirmInterruptingThreads: true });
+    channel.push({
+      updateDownloaded: true,
+      pendingVersion: "1.1.0",
+      downloadState: "downloaded",
+    });
+    await vi.waitFor(() => expect(channel.requests).toContain("install"), {
+      timeout: 3_000,
+    });
+    service.dispose();
+
+    const status = await create("1.0.0").getStatus({ forceRefresh: false });
+    expect(status.lastResult).toMatchObject({
+      outcome: "failed",
+      phase: "startup",
+      message: "bb started 1.0.0 instead of 1.1.0.",
+    });
   });
 
   it("keeps the server running when a new thread starts during download", async () => {

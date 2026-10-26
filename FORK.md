@@ -66,6 +66,10 @@ Keep these in mind when merging upstream; each is a small, marked edit.
 - **Launcher refresh.** `update-desktop-database` runs as a best-effort refresh.
 - **User edits.** Entries without the `X-OmaBB-Managed=true` line belong to the user and are left alone.
 
+### Desktop update check
+
+OmaBB's desktop version (`0.47.1-omabb.N`) differs from the bundled server's `bb-app` version (`0.47.1`), because CI stamps the suffix onto the desktop package only. The server's desktop update service (`apps/server/src/services/system/desktop-app-update.ts`) used to check a restart against the server's own version, so every OmaBB update reported "bb started 0.47.1 instead of 0.47.1-omabb.N" even though it had worked. It now checks against the version the desktop reports over the update channel, and falls back to the server's version when the desktop doesn't answer. Upstream's desktop and server versions are always equal, so this also suits upstream.
+
 ## Third-party code
 
 The Hyprland colour-management workaround is adapted from [T3 Code](https://github.com/pingdotgg/t3code), `apps/desktop/src/app/DesktopEarlyElectronStartup.ts` at `v0.1.1`. T3 Code is under this licence:

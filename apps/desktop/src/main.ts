@@ -2840,7 +2840,6 @@ function readCommandLineSwitch(name: string): string | null {
     : null;
 }
 
-// Must run before the app is ready: Chromium reads features at GPU start.
 function applyHyprlandColorManagerWorkaround(): void {
   const disableFeatures = resolveHyprlandDisableFeatures({
     env: process.env,

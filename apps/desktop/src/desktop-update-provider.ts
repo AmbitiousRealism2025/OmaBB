@@ -9,7 +9,6 @@ interface DesktopReleaseInfo {
   applicationName: "OmaBB" | "OmaBB Nightly";
   channel: DesktopReleaseChannel;
   iconFileName: "icon.png" | "icon-nightly.png";
-  /** The .desktop file name and Wayland app id, matching linuxExecutableName. */
   linuxDesktopId: "omabb" | "omabb-nightly";
   releaseTag: "desktop-latest" | "desktop-nightly";
   updateReleaseBaseUrl: string;

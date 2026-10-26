@@ -1,13 +1,3 @@
-// Hyprland 0.48.0 added wp-color-manager-v1 (hyprwm/Hyprland#9444) advertising
-// FEATURE_SET_PRIMARIES while rejecting set_primaries outside debug mode, which
-// Chromium treats as a fatal protocol error. 0.51.0 accepts them
-// (hyprwm/Hyprland#11499). Only stock builds of these releases count: matching
-// the commit as well as the tag keeps later development builds that still
-// report an old version and tag on Chromium's default.
-//
-// Adapted from T3 Code (MIT, Copyright (c) 2026 T3 Tools Inc.),
-// apps/desktop/src/app/DesktopEarlyElectronStartup.ts.
-
 export const WAYLAND_COLOR_MANAGER_FEATURE = "WaylandWpColorManagerV1";
 
 const AFFECTED_HYPRLAND_RELEASE_COMMITS: ReadonlyMap<string, string> = new Map([
@@ -21,9 +11,7 @@ const AFFECTED_HYPRLAND_RELEASE_COMMITS: ReadonlyMap<string, string> = new Map([
 interface ResolveDisableFeaturesArgs {
   env: NodeJS.ProcessEnv;
   platform: NodeJS.Platform;
-  /** Value of --ozone-platform, or null when the switch is absent. */
   ozonePlatform: string | null;
-  /** Value of --ozone-platform-hint, or null when the switch is absent. */
   ozonePlatformHint: string | null;
   enableFeatures: string | null;
   disableFeatures: string | null;
@@ -41,8 +29,6 @@ function featureNames(value: string | null): string[] {
     .flatMap((entry) => entry.trim().match(/^\*?([^<:]+)/)?.[1] ?? []);
 }
 
-// A stale HYPRLAND_INSTANCE_SIGNATURE is often inherited into other desktops,
-// so only trust the session's desktop names.
 function isHyprlandSession(env: NodeJS.ProcessEnv): boolean {
   const desktops =
     nonEmpty(env.XDG_CURRENT_DESKTOP) ?? nonEmpty(env.XDG_SESSION_DESKTOP);
@@ -51,8 +37,6 @@ function isHyprlandSession(env: NodeJS.ProcessEnv): boolean {
     .some((name) => name.trim().toLowerCase() === "hyprland");
 }
 
-// Electron picks Wayland by default when a Wayland display is available, so an
-// absent --ozone-platform still means Wayland unless a hint asks for X11.
 function usesWayland(args: ResolveDisableFeaturesArgs): boolean {
   if (args.ozonePlatform !== null) return args.ozonePlatform === "wayland";
   const hint =
@@ -78,11 +62,6 @@ function hasBrokenColorManager(readHyprctlVersionJson: () => string): boolean {
   }
 }
 
-/**
- * Returns the full --disable-features value to set, or null to leave the
- * command line alone. Chromium keeps only the last --disable-features value,
- * so the result merges any existing list.
- */
 export function resolveHyprlandDisableFeatures(
   args: ResolveDisableFeaturesArgs,
 ): string | null {

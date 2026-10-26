@@ -3,12 +3,6 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 
-// An AppImage has no installer, so nothing puts it in the application
-// launcher. On each launch, keep a launcher entry and icon pointing at the
-// running AppImage. The entry follows the AppImage when it moves or the
-// updater renames it, because the next launch rewrites Exec. Entries without
-// the marker belong to the user and are never touched.
-
 export const DESKTOP_ENTRY_MARKER = "X-OmaBB-Managed=true";
 
 interface RenderDesktopEntryArgs {
@@ -18,7 +12,6 @@ interface RenderDesktopEntryArgs {
   iconPath: string;
 }
 
-// The general string-value escapes, applied after the Exec quoting rules.
 function escapeDesktopEntryString(value: string): string {
   return value
     .replaceAll("\\", "\\\\")
@@ -66,7 +59,6 @@ interface DesktopIntegrationFs {
 }
 
 const nodeFs: DesktopIntegrationFs = {
-  // Read and write rather than copy: the packaged icon is inside app.asar.
   copyFile: (source, target) => writeFileSync(target, readFileSync(source)),
   readBytes: (path) => {
     try {
@@ -92,10 +84,8 @@ export interface SyncAppImageDesktopEntryArgs {
   env: NodeJS.ProcessEnv;
   fs?: DesktopIntegrationFs;
   homeDirectory?: string;
-  /** The packaged icon to install. */
   iconSourcePath: string;
   platform: NodeJS.Platform;
-  /** Called after the entry changes, to refresh launcher caches. */
   onEntryChanged?: (applicationsDir: string) => void;
 }
 
@@ -131,7 +121,6 @@ export function syncAppImageDesktopEntry(
     return "user-owned";
   }
 
-  // A path, not a theme icon name, so no icon cache needs refreshing.
   const iconPath = join(
     dataHome,
     "icons",
@@ -163,7 +152,6 @@ export function syncAppImageDesktopEntry(
   return "written";
 }
 
-/** Best effort: launchers that don't watch the folder read this cache. */
 export function refreshDesktopDatabase(applicationsDir: string): void {
   try {
     const child = spawn("update-desktop-database", [applicationsDir], {
@@ -172,7 +160,5 @@ export function refreshDesktopDatabase(applicationsDir: string): void {
     });
     child.on("error", () => {});
     child.unref();
-  } catch {
-    // Not installed, or not spawnable: launchers rescan on their own.
-  }
+  } catch {}
 }

@@ -88,7 +88,6 @@ describe("Hyprland color manager workaround", () => {
         env: { XDG_CURRENT_DESKTOP: "GNOME", WAYLAND_DISPLAY: "wayland-0" },
       }),
     ).toBeNull();
-    // A stale instance signature alone doesn't count.
     expect(
       resolve({
         env: {

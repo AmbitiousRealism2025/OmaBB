@@ -1,17 +1,7 @@
-// Turns an Omarchy 4 theme's colors.toml into a bb theme stylesheet.
-//
-// bb derives its whole neutral ramp from two anchors, --canvas and --ink, so
-// the mapping sets those, the accent, the text tiers, the semantic colours and
-// the terminal palette, and leaves every derived token alone.
-
 export type OmarchyColors = Record<string, string>;
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
-/**
- * Reads the `key = "#rrggbb"` lines of colors.toml. Other TOML is ignored:
- * Omarchy's colors file is flat, and only colour values matter here.
- */
 export function parseColorsToml(source: string): OmarchyColors {
   const colors: OmarchyColors = {};
   for (const rawLine of source.split(/\r?\n/)) {
@@ -49,10 +39,6 @@ export function contrastRatio(a: string, b: string): number {
   return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05);
 }
 
-/**
- * The first candidate that meets WCAG AA (4.5:1) against `background`, so a
- * theme's own colours win over plain black or white; otherwise the best one.
- */
 function readableOn(background: string, candidates: string[]): string {
   let best = candidates[0] ?? "#ffffff";
   for (const candidate of candidates) {
@@ -66,9 +52,6 @@ function readableOn(background: string, candidates: string[]): string {
   return best;
 }
 
-// The same slots Omarchy's own terminal templates use (default/themed/
-// alacritty.toml.tpl), so bb's terminal matches the system terminal. A
-// theme's colorN keys are the fallback.
 const ANSI_SOURCES: readonly (readonly string[])[] = [
   ["background"],
   ["red"],
@@ -87,6 +70,14 @@ const ANSI_SOURCES: readonly (readonly string[])[] = [
   ["bright_cyan"],
   ["bright_foreground"],
 ];
+
+function cssString(value: string): string {
+  const escaped = value
+    .replace(/[\\"]/g, "\\$&")
+    .replace(/[\n\r\f]/g, " ")
+    .replace(/</g, "\\3C ");
+  return `"${escaped}"`;
+}
 
 export interface RenderedTheme {
   css: string;
@@ -123,6 +114,8 @@ export function renderThemeCss(
     `--ink: ${ink};`,
     `--primary: ${accent};`,
     `--primary-foreground: ${readableOn(accent, [canvas, ink, "#000000", "#ffffff"])};`,
+    `--destructive-foreground: ${readableOn(red, [canvas, ink, "#000000", "#ffffff"])};`,
+    `--attention-foreground: ${readableOn(orange, [canvas, ink, "#000000", "#ffffff"])};`,
     "--muted-foreground: color-mix(in oklch, var(--ink) 70%, var(--canvas));",
     "--subtle-foreground: color-mix(in oklch, var(--ink) 58%, var(--canvas));",
     "--readback-foreground: color-mix(in oklch, var(--ink) 64%, var(--canvas));",
@@ -146,17 +139,8 @@ export function renderThemeCss(
     );
   }
 
-  // Omarchy themes have one palette, so it applies in both of bb's modes.
+  declarations.push(`--omarchy-theme-name: ${cssString(themeName)};`);
   const body = declarations.map((line) => `  ${line}`).join("\n");
-  const css = [
-    `/* Generated from the Omarchy theme "${themeName.replaceAll("*/", "")}" (${mode}). */`,
-    "/* bb-plugin-omarchy-theme rewrites this file; edits are overwritten. */",
-    ":root,",
-    ".light,",
-    ".dark {",
-    body,
-    "}",
-    "",
-  ].join("\n");
+  const css = [":root,", ".light,", ".dark {", body, "}", ""].join("\n");
   return { css, mode };
 }

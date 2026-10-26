@@ -41,7 +41,7 @@ The mapping sets bb's two anchor colours, the accent, the text tiers, the status
 | `--file-accent` | `cyan` |
 | `--ansi-0` … `--ansi-15` | the slots Omarchy's own terminal templates use: `background`, `red` … `cyan`, `foreground`, `muted`, `bright_red` … `bright_cyan`, `bright_foreground` |
 
-Text colours drawn on the accent and on the terminal colours are whichever of the theme's colours, or black or white, reads best. Missing keys fall back to `color0`–`color15`, and values that aren't `#rrggbb` are ignored.
+Text drawn on the accent, on destructive and attention fills, and on terminal colours uses the theme's own background or foreground when it reaches 4.5:1 contrast. Otherwise it uses whichever of black or white reads best. The stylesheet also records the theme's name as `--omarchy-theme-name`, which helps with debugging. Missing keys fall back to `color0`–`color15`, and values that aren't `#rrggbb` are ignored.
 
 ## Limits
 

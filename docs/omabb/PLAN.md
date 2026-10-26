@@ -168,9 +168,15 @@ A keybind captures the focused window and attaches it to the current thread's dr
 - Pressing the bind puts a correctly labelled screenshot in the current draft within about a second, on arm64 and x64.
 - The bind can be installed and removed from settings.
 
-**Open questions:**
-- Can a plugin add an attachment to the draft of the thread currently on screen? A likely route: the backend publishes a realtime event, and the frontend calls `useComposer`. Check that the attachment API allows it.
-- Hyprland 0.56 draws an "access denied" image instead of failing when a `no_screen_share` rule applies. Detect that case rather than attaching a blank image.
+**Open questions, answered (2026-10-26):**
+- *Can a plugin add an attachment to the draft of the thread on screen?* Yes. An `experimental_appOverlay` component's `useComposer()` falls back to the route's draft, and `replace` accepts absolute-path attachments with a `hostId`. The backend publishes a realtime signal. Only desktop windows (`window.bbDesktop`) act on it, and only the one focused last, so a phone or browser tab never picks it up.
+- *`no_screen_share` on Hyprland 0.56.* `hyprctl -j getprop address:<window> no_screen_share` reports the rule, and the capture refuses before running `grim`.
+
+**Status (2026-10-26):** steps 1 and 3 are built as the `window-capture` plugin (`omarchy-plugins/window-capture`).
+- The bind calls the plugin's local HTTP route with `curl`, not the CLI, because the `bb` shell command is often not installed and Node's startup would add latency. The CLI command `capture-window` exists too.
+- A capture takes about 0.55 s on the M1 Max.
+- The accessibility tree comes from a small PyGObject script run with the system Python, which Omarchy's base install includes. Chromium and Electron apps expose a tree only when started with accessibility on.
+- Steps 2 and 4 are still open.
 
 ## Phase 4: Device panel
 

@@ -6,6 +6,7 @@ bb plugins for [Omarchy](https://omarchy.org) users. Each one installs on stock 
 |---|---|
 | [`omarchy-theme`](omarchy-theme) | Adds an Omarchy theme to Settings → Appearance that follows your current Omarchy theme |
 | [`ssh-machines`](ssh-machines) | Adds SSH as a machine type: enter `user@host` and bb installs and enrolls the box |
+| [`window-capture`](window-capture) | A Hyprland shortcut that captures the focused window, with its accessibility tree, into the draft on screen |
 
 Install one straight from GitHub:
 

@@ -1,9 +1,3 @@
-// SSH Machines: add a box you can reach over SSH as a bb machine.
-//
-// bb's machine bootstrap already installs, enrolls and starts the host
-// daemon; it only needs a way to run commands on the box. This plugin
-// supplies that over ssh, checks the box first, and on removal stops and
-// uninstalls the daemon it installed.
 import { spawnSync } from "node:child_process";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
@@ -25,9 +19,12 @@ export const inputsSchema = z
   })
   .strict();
 
-const resourceSchema = z.object({ host: z.string() }).passthrough();
+const resourceSchema = z.object({
+  host: z.string().min(1),
+  port: z.number().int().min(1).max(65535).nullable().optional(),
+  identityFile: z.string().min(1).nullable().optional(),
+});
 
-// Bootstrap needs these on the box's non-interactive PATH (machine guide).
 const PREFLIGHT = [
   "sh",
   "-c",
@@ -108,8 +105,6 @@ export default async function plugin(bb: BbPluginApi) {
           };
         }
 
-        // Nothing to allocate: the box exists. Checkpoint before bootstrap so
-        // removal can clean up even if enrollment never finishes.
         await checkpoint({
           host: target.host,
           port: target.port ?? null,
@@ -137,8 +132,6 @@ export default async function plugin(bb: BbPluginApi) {
       }
     },
 
-    // A failed create leaves at most a half-installed daemon that bb has
-    // already stopped trusting, so there is nothing to reclaim by key.
     async reconcileCleanup() {
       return { status: "removed" };
     },
@@ -146,23 +139,16 @@ export default async function plugin(bb: BbPluginApi) {
     async remove({ hostId, resource, report, signal }) {
       const parsed = resourceSchema.safeParse(resource);
       if (!parsed.success) return { status: "removed" };
-      const stored = parsed.data as {
-        host: string;
-        port?: number | null;
-        identityFile?: string | null;
-      };
+      const stored = parsed.data;
       const target: SshTarget = {
         host: stored.host,
-        ...(typeof stored.port === "number" ? { port: stored.port } : {}),
-        ...(typeof stored.identityFile === "string"
-          ? { identityFile: stored.identityFile }
-          : {}),
+        ...(stored.port == null ? {} : { port: stored.port }),
+        ...(stored.identityFile == null
+          ? {}
+          : { identityFile: stored.identityFile }),
       };
       const label = describeTarget(target);
 
-      // bb revokes the machine's access whatever happens here, so a box that
-      // is gone or unreachable must not block removal. Uninstalling is a
-      // courtesy that cleans up the daemon and its files.
       try {
         report.step(`Uninstalling the bb daemon from ${label}`);
         const response = await fetch(

@@ -1,7 +1,4 @@
-// Pure target checks, shared by the server and the browser-side form.
-
 export interface SshTarget {
-  /** An SSH alias from ~/.ssh/config, `host`, or `user@host`. */
   host: string;
   port?: number;
   identityFile?: string;
@@ -9,7 +6,6 @@ export interface SshTarget {
 
 const HOST_PATTERN = /^(?:[A-Za-z0-9._-]+@)?[A-Za-z0-9._:%[\]-]+$/;
 
-/** A reason the target can't be used, or null when it's fine. */
 export function targetProblem(target: SshTarget): string | null {
   const host = target.host.trim();
   if (host.length === 0) return "Enter a host, user@host, or SSH alias.";

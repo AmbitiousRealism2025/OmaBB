@@ -1,5 +1,3 @@
-// The SSH machine form: host, optional port and identity file. It reports
-// ready inputs to bb's machine creation surfaces, or why they're blocked.
 import { useEffect, useId, useState } from "react";
 import {
   definePluginApp,

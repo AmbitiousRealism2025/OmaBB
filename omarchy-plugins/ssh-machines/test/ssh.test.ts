@@ -16,7 +16,6 @@ const SHELLS = ["sh", "bash", "zsh", "fish"].filter(
   (shell) => spawnSync("sh", ["-c", `command -v ${shell}`]).status === 0,
 );
 
-// Arguments that break naive quoting in at least one shell.
 const AWKWARD = [
   "plain",
   "with space",
@@ -31,7 +30,6 @@ const AWKWARD = [
   "",
 ];
 
-// Prints each argument on its own NUL-terminated record.
 const PRINT_ARGV = ["sh", "-c", 'for a; do printf "%s\\0" "$a"; done', "argv0"];
 
 describe("encodeRemoteCommand", () => {

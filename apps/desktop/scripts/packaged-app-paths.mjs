@@ -2,13 +2,18 @@ import { access, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 export async function resolvePackagedAppBinary({
+  arch = process.arch,
   executableName,
   platform,
   productName,
   releaseDir,
 }) {
   if (platform === "linux") {
-    return join(releaseDir, "linux-unpacked", executableName);
+    // electron-builder names the x64 output linux-unpacked and suffixes every
+    // other arch, e.g. linux-arm64-unpacked.
+    const unpackedDirectory =
+      arch === "x64" ? "linux-unpacked" : `linux-${arch}-unpacked`;
+    return join(releaseDir, unpackedDirectory, executableName);
   }
   if (platform === "win32") {
     return join(releaseDir, "win-unpacked", `${productName}.exe`);
